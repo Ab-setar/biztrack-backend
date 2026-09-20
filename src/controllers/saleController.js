@@ -148,3 +148,76 @@ export const createSale = async (req, res) => {
         client.release();
     }
 };
+export const getSales = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                sales.id,
+                customers.name AS customer_name,
+                sales.total_amount,
+                sales.created_at
+             FROM sales
+             JOIN customers
+                ON sales.customer_id = customers.id
+             ORDER BY sales.created_at DESC`
+        );
+
+        res.status(200).json(result.rows);
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            message: "Failed to get sales"
+        });
+    }
+
+};
+export const getSaleById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const saleResult = await pool.query(
+            `SELECT
+                sales.id,
+                customers.name AS customer_name,
+                sales.total_amount,
+                sales.created_at
+             FROM sales
+             JOIN customers
+                ON sales.customer_id = customers.id
+             WHERE sales.id = $1`,
+            [id]
+        );
+
+        if (saleResult.rows.length === 0) {
+            return res.status(404).json({
+                message: "Sale not found"
+            });
+        }
+
+        const itemsResult = await pool.query(
+            `SELECT
+                products.name AS product_name,
+                sale_items.quantity,
+                sale_items.unit_price
+             FROM sale_items
+             JOIN products
+                ON sale_items.product_id = products.id
+             WHERE sale_items.sale_id = $1`,
+            [id]
+        );
+
+        res.status(200).json({
+            ...saleResult.rows[0],
+            items: itemsResult.rows
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            message: "Failed to get sale"
+        });
+    }
+};
