@@ -7,9 +7,24 @@ export const createSale = async (req, res) => {
         const { customer_id, items } = req.body;
 
         // 1. Validate request
-        if (!customer_id || !items || items.length === 0) {
+     if (
+    !Number.isInteger(Number(customer_id)) ||
+    Number(customer_id) <= 0 ||
+    !Array.isArray(items) ||
+    items.length === 0
+) {
+    return res.status(400).json({
+        message: "Invalid customer or sale items"
+    });
+}
+     //  Check for duplicate products
+        const productIds = items.map(item => Number(item.product_id));
+
+        const uniqueProductIds = new Set(productIds);
+
+        if (uniqueProductIds.size !== productIds.length) {
             return res.status(400).json({
-                message: "Customer and sale items are required"
+                message: "A product cannot appear more than once in a sale"
             });
         }
 
