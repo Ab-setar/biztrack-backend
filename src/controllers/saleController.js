@@ -1,5 +1,6 @@
 import pool from "../db/database.js";
 
+
 export const createSale = async (req, res) => {
     const client = await pool.connect();
 
@@ -104,13 +105,17 @@ export const createSale = async (req, res) => {
         }
 
         // 6. Create sale
-        const saleResult = await client.query(
-            `INSERT INTO sales
-             (customer_id, total_amount)
-             VALUES ($1, $2)
-             RETURNING *`,
-            [customer_id, totalAmount]
-        );
+      const saleResult = await client.query(
+    `INSERT INTO sales
+     (customer_id, user_id, total_amount)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [
+        customer_id,
+        req.user.userId,
+        totalAmount
+    ]
+);
 
         const sale = saleResult.rows[0];
 
