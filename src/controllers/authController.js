@@ -4,8 +4,7 @@ import pool from "../db/database.js";
 
 export const registerUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
-
+         const { name, email, password } = req.body;
         // 1. Validate required fields
         if (!name || !email || !password) {
             return res.status(400).json({
@@ -31,18 +30,17 @@ export const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // 4. Create user
-        const result = await pool.query(
-            `INSERT INTO users
-             (name, email, password, role)
-             VALUES ($1, $2, $3, $4)
-             RETURNING id, name, email, role, created_at`,
-            [
-                name,
-                email,
-                hashedPassword,
-                role || "employee"
-            ]
-        );
+const result = await pool.query(
+    `INSERT INTO users
+     (name, email, password, role)
+     VALUES ($1, $2, $3, 'employee')
+     RETURNING id, name, email, role, created_at`,
+    [
+        name,
+        email,
+        hashedPassword
+    ]
+);
 
         // 5. Return user without password
         res.status(201).json({

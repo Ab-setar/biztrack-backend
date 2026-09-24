@@ -1,4 +1,6 @@
 import express from "express";
+import { authenticateToken } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 import {
     createProduct,
@@ -16,5 +18,10 @@ router.get("/", getProducts);
 
 router.get("/:id", getProductById);
 router.put("/:id",updateProduct);
-router.delete("/:id", deleteProduct);
+router.delete(
+    "/:id",
+    authenticateToken,
+    authorizeRoles("owner"),
+    deleteProduct
+);
 export default router;
