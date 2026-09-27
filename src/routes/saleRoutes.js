@@ -1,19 +1,30 @@
 import express from "express";
-
+import { authenticateToken } from "../middleware/authMiddleware.js";
 import {
     createSale,
     getSales,
     getSaleById
 } from "../controllers/saleController.js";
 
-import { authenticateToken } from "../middleware/authMiddleware.js";
+
 
 const router = express.Router();
 
-router.post("/", authenticateToken, createSale);
+router.get(
+    "/",
+    authenticateToken,
+    getSales
+);
 
-router.get("/", getSales);
+router.get(
+    "/:id",
+    authenticateToken,
+    getSaleById
+);
 
-router.get("/:id", getSaleById);
-
+router.post(
+    "/",
+    authenticateToken,
+    createSale
+);
 export default router;
