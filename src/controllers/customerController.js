@@ -4,12 +4,17 @@ export const createCustomer = async (req, res) => {
     try {
         const { name, phone, email } = req.body;
 
-        if (!name) {
-            return res.status(400).json({
-                message: "Customer name is required"
-            });
-        }
-
+     if (
+    !name ||
+    typeof name !== "string" ||
+    (phone !== undefined && typeof phone !== "string") ||
+    (email !== undefined && typeof email !== "string")
+) {
+    return res.status(400).json({
+        success: false,
+        message: "Invalid customer data"
+    });
+}
         const result = await pool.query(
             `INSERT INTO customers (name, phone, email)
              VALUES ($1, $2, $3)
@@ -80,11 +85,17 @@ export const updateCustomer = async (req, res) => {
         const { id } = req.params;
         const { name, phone, email } = req.body;
 
-        if (!name) {
-            return res.status(400).json({
-                message: "Customer name is required"
-            });
-        }
+      if (
+    !name ||
+    typeof name !== "string" ||
+    (phone !== undefined && typeof phone !== "string") ||
+    (email !== undefined && typeof email !== "string")
+) {
+    return res.status(400).json({
+        success: false,
+        message: "Invalid customer data"
+    });
+}
 
         const result = await pool.query(
             `UPDATE customers

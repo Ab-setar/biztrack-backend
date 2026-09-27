@@ -3,12 +3,19 @@ import pool from "../db/database.js";
 export const createProduct = async (req, res) => {
   try {
     const { name, price, stock_quantity } = req.body;
+if (
+    !name ||
+    typeof name !== "string" ||
+    typeof price !== "number" ||
+    price < 0 ||
+    !Number.isInteger(stock_quantity) ||
+    stock_quantity < 0
+) {
+    return res.status(400).json({
+      message: "Invalid product data"
+    });
+  }
 
-    if (!name || price < 0 || stock_quantity < 0) {
-      return res.status(400).json({
-        message: "Invalid product data",
-      });
-    }
 
     const result = await pool.query(
       `INSERT INTO products (name, price, stock_quantity)
@@ -73,7 +80,14 @@ export const updateProduct = async (req, res) => {
 
         const { name, price, stock_quantity } = req.body;
 
-        if (!name || price < 0 || stock_quantity < 0) {
+        if (
+            !name ||
+            typeof name !== "string" ||
+            typeof price !== "number" ||
+            price < 0 ||
+            !Number.isInteger(stock_quantity) ||
+            stock_quantity < 0
+        ) {
             return res.status(400).json({
                 message: "Invalid product data"
             });

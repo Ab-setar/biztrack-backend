@@ -18,6 +18,19 @@ export const createSale = async (req, res) => {
         message: "Invalid customer or sale items"
     });
 }
+for (const item of items) {
+    if (
+        !Number.isInteger(item.product_id) ||
+        item.product_id <= 0 ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity <= 0
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid sale item data"
+        });
+    }
+}
      //  Check for duplicate products
         const productIds = items.map(item => Number(item.product_id));
 
