@@ -105,7 +105,7 @@ export const updateProduct = async (req, res) => {
         });
     }
 };
-export const deleteProduct = async (req, res) => {
+export const deleteProduct = async (req, res, next) => { 
     try {
         const { id } = req.params;
 
@@ -126,13 +126,8 @@ export const deleteProduct = async (req, res) => {
             message: "Product deleted successfully",
             product: result.rows[0]
         });
-
-    } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            message: "Failed to delete product"
-        });
     }
-};
-
+catch (error) {
+    next(error);
+}
+    };
