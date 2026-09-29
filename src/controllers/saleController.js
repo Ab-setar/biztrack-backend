@@ -1,80 +1,100 @@
 import pool from "../db/database.js";
+import {
+    successResponse,
+    errorResponse
+} from "../utils/response.js";
 
 
 export const createSale = async (req, res) => {
+
     const client = await pool.connect();
 
     try {
+
         const { customer_id, items } = req.body;
 
-        // 1. Validate request
-     if (
-    !Number.isInteger(Number(customer_id)) ||
-    Number(customer_id) <= 0 ||
-    !Array.isArray(items) ||
-    items.length === 0
-) {
-    return res.status(400).json({
-        message: "Invalid customer or sale items"
-    });
-}
-for (const item of items) {
-    if (
-        !Number.isInteger(item.product_id) ||
-        item.product_id <= 0 ||
-        !Number.isInteger(item.quantity) ||
-        item.quantity <= 0
-    ) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid sale item data"
-        });
-    }
-}
-     //  Check for duplicate products
-        const productIds = items.map(item => Number(item.product_id));
+        // 1. Normalize input
+        const customerId = Number(customer_id);
+
+        // 2. Validate customer and sale items
+        if (
+            !Number.isInteger(customerId) ||
+            customerId <= 0 ||
+            !Array.isArray(items) ||
+            items.length === 0
+        ) {
+            return errorResponse(
+                res,
+                "Invalid customer or sale items",
+                400
+            );
+        }
+
+        // 3. Normalize and validate every sale item
+        const normalizedItems = items.map((item) => ({
+            product_id: Number(item.product_id),
+            quantity: Number(item.quantity)
+        }));
+
+        for (const item of normalizedItems) {
+
+            if (
+                !Number.isInteger(item.product_id) ||
+                item.product_id <= 0 ||
+                !Number.isInteger(item.quantity) ||
+                item.quantity <= 0
+            ) {
+                return errorResponse(
+                    res,
+                    "Invalid sale item data",
+                    400
+                );
+            }
+        }
+
+        // 4. Check for duplicate products
+        const productIds = normalizedItems.map(
+            item => item.product_id
+        );
 
         const uniqueProductIds = new Set(productIds);
 
         if (uniqueProductIds.size !== productIds.length) {
-            return res.status(400).json({
-                message: "A product cannot appear more than once in a sale"
-            });
+            return errorResponse(
+                res,
+                "A product cannot appear more than once in a sale",
+                400
+            );
         }
 
-        // Start transaction
+        // 5. Start transaction
         await client.query("BEGIN");
 
-        // 2. Check customer
+        // 6. Check customer
         const customerResult = await client.query(
-            `SELECT * FROM customers
+            `SELECT *
+             FROM customers
              WHERE id = $1`,
-            [customer_id]
+            [customerId]
         );
 
         if (customerResult.rows.length === 0) {
             await client.query("ROLLBACK");
 
-            return res.status(404).json({
-                message: "Customer not found"
-            });
+            return errorResponse(
+                res,
+                "Customer not found",
+                404
+            );
         }
 
         let totalAmount = 0;
         const products = [];
 
-        // 3. Check every product
-        for (const item of items) {
+        // 7. Check every product
+        for (const item of normalizedItems) {
 
             const { product_id, quantity } = item;
-
-            if (!product_id || !quantity || quantity <= 0) {
-                await client.query("ROLLBACK");
-
-                return res.status(400).json({
-                    message: "Invalid product or quantity"
-                });
-            }
 
             const productResult = await client.query(
                 `SELECT *
@@ -87,26 +107,30 @@ for (const item of items) {
             if (productResult.rows.length === 0) {
                 await client.query("ROLLBACK");
 
-                return res.status(404).json({
-                    message: `Product ${product_id} not found`
-                });
+                return errorResponse(
+                    res,
+                    `Product ${product_id} not found`,
+                    404
+                );
             }
 
             const product = productResult.rows[0];
 
-            // 4. Check stock
+            // 8. Check stock
             if (product.stock_quantity < quantity) {
                 await client.query("ROLLBACK");
 
                 return res.status(400).json({
+                    success: false,
                     message: `Insufficient stock for ${product.name}`,
                     available: product.stock_quantity,
                     requested: quantity
                 });
             }
 
-            // 5. Calculate item total
-            const itemTotal = Number(product.price) * quantity;
+            // 9. Calculate item total
+            const itemTotal =
+                Number(product.price) * quantity;
 
             totalAmount += itemTotal;
 
@@ -117,22 +141,22 @@ for (const item of items) {
             });
         }
 
-        // 6. Create sale
-      const saleResult = await client.query(
-    `INSERT INTO sales
-     (customer_id, user_id, total_amount)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [
-        customer_id,
-        req.user.userId,
-        totalAmount
-    ]
-);
+        // 10. Create sale
+        const saleResult = await client.query(
+            `INSERT INTO sales
+             (customer_id, user_id, total_amount)
+             VALUES ($1, $2, $3)
+             RETURNING *`,
+            [
+                customerId,
+                req.user.userId,
+                totalAmount
+            ]
+        );
 
         const sale = saleResult.rows[0];
 
-        // 7. Create sale items + decrease stock
+        // 11. Create sale items + decrease stock
         for (const product of products) {
 
             await client.query(
@@ -158,13 +182,17 @@ for (const item of items) {
             );
         }
 
-        // 8. Everything succeeded
+        // 12. Everything succeeded
         await client.query("COMMIT");
 
-        res.status(201).json({
-            message: "Sale created successfully",
-            sale
-        });
+        return successResponse(
+            res,
+            {
+                message: "Sale created successfully",
+                sale
+            },
+            201
+        );
 
     } catch (error) {
 
@@ -172,17 +200,24 @@ for (const item of items) {
 
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to create sale"
-        });
+        return errorResponse(
+            res,
+            "Failed to create sale",
+            500
+        );
 
     } finally {
 
         client.release();
+
     }
 };
+
+
 export const getSales = async (req, res) => {
+
     try {
+
         const result = await pool.query(
             `SELECT
                 sales.id,
@@ -195,19 +230,28 @@ export const getSales = async (req, res) => {
              ORDER BY sales.created_at DESC`
         );
 
-        res.status(200).json(result.rows);
+        return successResponse(
+            res,
+            result.rows
+        );
 
     } catch (error) {
+
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to get sales"
-        });
+        return errorResponse(
+            res,
+            "Failed to get sales",
+            500
+        );
     }
-
 };
+
+
 export const getSaleById = async (req, res) => {
+
     try {
+
         const { id } = req.params;
 
         const saleResult = await pool.query(
@@ -224,9 +268,12 @@ export const getSaleById = async (req, res) => {
         );
 
         if (saleResult.rows.length === 0) {
-            return res.status(404).json({
-                message: "Sale not found"
-            });
+
+            return errorResponse(
+                res,
+                "Sale not found",
+                404
+            );
         }
 
         const itemsResult = await pool.query(
@@ -241,16 +288,23 @@ export const getSaleById = async (req, res) => {
             [id]
         );
 
-        res.status(200).json({
-            ...saleResult.rows[0],
-            items: itemsResult.rows
-        });
+        return successResponse(
+            res,
+            {
+                ...saleResult.rows[0],
+                items: itemsResult.rows
+            }
+        );
 
     } catch (error) {
+
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to get sale"
-        });
+        return errorResponse(
+            res,
+            "Failed to get sale",
+            500
+        );
     }
 };
+
