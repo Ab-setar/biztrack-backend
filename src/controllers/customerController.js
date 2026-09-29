@@ -1,35 +1,71 @@
 import pool from "../db/database.js";
 
+import {
+    successResponse,
+    errorResponse
+} from "../utils/response.js";
+
 export const createCustomer = async (req, res) => {
     try {
-        const { name, phone, email } = req.body;
+       
+const { name, phone, email } = req.body;
 
-     if (
-    !name ||
-    typeof name !== "string" ||
-    (phone !== undefined && typeof phone !== "string") ||
-    (email !== undefined && typeof email !== "string")
+const normalizedName =
+    typeof name === "string" ? name.trim() : "";
+
+const normalizedPhone =
+    typeof phone === "string" ? phone.trim() : phone;
+
+const normalizedEmail =
+    typeof email === "string"
+        ? email.trim().toLowerCase()
+        : email;
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (
+    !normalizedName ||
+    (normalizedPhone !== undefined && !normalizedPhone) ||
+    (normalizedEmail !== undefined && !normalizedEmail)
 ) {
-    return res.status(400).json({
-        success: false,
-        message: "Invalid customer data"
-    });
+    return errorResponse(
+        res,
+        "Invalid customer data",
+        400
+    );
+}
+
+if (
+    normalizedEmail !== undefined &&
+    !emailRegex.test(normalizedEmail)
+) {
+    return errorResponse(
+        res,
+        "Invalid email address",
+        400
+    );
 }
         const result = await pool.query(
             `INSERT INTO customers (name, phone, email)
              VALUES ($1, $2, $3)
              RETURNING *`,
-            [name, phone, email]
+            [normalizedName, normalizedPhone, normalizedEmail]
         );
 
-        res.status(201).json(result.rows[0]);
+        return successResponse(
+            res,
+            result.rows[0],
+            201
+        );
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to create customer"
-        });
+        return errorResponse(
+            res,
+            "Failed to create customer",
+            500
+        );
     }
 };
 
@@ -40,14 +76,19 @@ export const getCustomers = async (req, res) => {
             `SELECT * FROM customers`
         );
 
-        res.status(200).json(result.rows);
+        return successResponse(
+            res,
+            result.rows
+        );
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to get customers"
-        });
+        return errorResponse(
+            res,
+            "Failed to get customers",
+            500
+        );
     }
 };
 
@@ -63,19 +104,26 @@ export const getCustomerById = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Customer not found"
-            });
+            return errorResponse(
+                res,
+                "Customer not found",
+                404
+            );
         }
 
-        res.status(200).json(result.rows[0]);
+        return successResponse(
+            res,
+            result.rows[0]
+        );
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to get customer"
-        });
+        return errorResponse(
+            res,
+            "Failed to get customer",
+            500
+        );
     }
 };
 
@@ -85,16 +133,40 @@ export const updateCustomer = async (req, res) => {
         const { id } = req.params;
         const { name, phone, email } = req.body;
 
-      if (
-    !name ||
-    typeof name !== "string" ||
-    (phone !== undefined && typeof phone !== "string") ||
-    (email !== undefined && typeof email !== "string")
+const normalizedName =
+    typeof name === "string" ? name.trim() : "";
+
+const normalizedPhone =
+    typeof phone === "string" ? phone.trim() : phone;
+
+const normalizedEmail =
+    typeof email === "string"
+        ? email.trim().toLowerCase()
+        : email;
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (
+    !normalizedName ||
+    (normalizedPhone !== undefined && !normalizedPhone) ||
+    (normalizedEmail !== undefined && !normalizedEmail)
 ) {
-    return res.status(400).json({
-        success: false,
-        message: "Invalid customer data"
-    });
+    return errorResponse(
+        res,
+        "Invalid customer data",
+        400
+    );
+}
+
+if (
+    normalizedEmail !== undefined &&
+    !emailRegex.test(normalizedEmail)
+) {
+    return errorResponse(
+        res,
+        "Invalid email address",
+        400
+    );
 }
 
         const result = await pool.query(
@@ -104,23 +176,30 @@ export const updateCustomer = async (req, res) => {
                  email = $3
              WHERE id = $4
              RETURNING *`,
-            [name, phone, email, id]
+            [normalizedName, normalizedPhone, normalizedEmail, id]
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Customer not found"
-            });
+            return errorResponse(
+                res,
+                "Customer not found",
+                404
+            );
         }
 
-        res.status(200).json(result.rows[0]);
+        return successResponse(
+            res,
+            result.rows[0]
+        );
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to update customer"
-        });
+        return errorResponse(
+            res,
+            "Failed to update customer",
+            500
+        );
     }
 };
 
@@ -137,21 +216,28 @@ export const deleteCustomer = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Customer not found"
-            });
+            return errorResponse(
+                res,
+                "Customer not found",
+                404
+            );
         }
 
-        res.status(200).json({
-            message: "Customer deleted successfully",
-            customer: result.rows[0]
-        });
+        return successResponse(
+            res,
+            {
+                message: "Customer deleted successfully",
+                customer: result.rows[0]
+            }
+        );
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
-            message: "Failed to delete customer"
-        });
+        return errorResponse(
+            res,
+            "Failed to delete customer",
+            500
+        );
     }
 };

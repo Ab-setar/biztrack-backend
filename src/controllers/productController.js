@@ -1,54 +1,74 @@
 import pool from "../db/database.js";
 
-export const createProduct = async (req, res) => {
-  try {
-    const { name, price, stock_quantity } = req.body;
+import { successResponse, errorResponse } from "../utils/response.js";
+
+
+export const createProduct = async (req, res, next) => {
+    try {
+      const { name, price, stock_quantity } = req.body;
+
+const normalizedName =
+    typeof name === "string" ? name.trim() : "";
+
+const normalizedPrice =
+    typeof price === "number" ? price : NaN;
+
+const normalizedStockQuantity =
+    typeof stock_quantity === "number"
+        ? stock_quantity
+        : NaN;
+
 if (
-    !name ||
-    typeof name !== "string" ||
-    typeof price !== "number" ||
-    price < 0 ||
-    !Number.isInteger(stock_quantity) ||
-    stock_quantity < 0
+    !normalizedName ||
+    !Number.isFinite(normalizedPrice) ||
+    normalizedPrice < 0 ||
+    !Number.isInteger(normalizedStockQuantity) ||
+    normalizedStockQuantity < 0
 ) {
-    return res.status(400).json({
-      message: "Invalid product data"
-    });
-  }
-
-
-    const result = await pool.query(
-      `INSERT INTO products (name, price, stock_quantity)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [name, price, stock_quantity]
+    return errorResponse(
+        res,
+        "Invalid product data",
+        400
     );
+}
 
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error(error);
+        const result = await pool.query(
+            `INSERT INTO products (name, price, stock_quantity)
+             VALUES ($1, $2, $3)
+             RETURNING *`,
+            [normalizedName, normalizedPrice, normalizedStockQuantity]
+        );
 
-    res.status(500).json({
-      message: "Failed to create product",
-    });
-  }
+        return successResponse(
+            res,
+            result.rows[0],
+            201
+        );
+
+    } catch (error) {
+        next(error);
+    }
 };
-export const getProducts = async (req, res) => {
+
+
+export const getProducts = async (req, res, next) => {
     try {
         const result = await pool.query(
             `SELECT * FROM products`
         );
 
-        res.status(200).json(result.rows);
-    } catch (error) {
-        console.error(error);
+        return successResponse(
+            res,
+            result.rows
+        );
 
-        res.status(500).json({
-            message: "Failed to get products"
-        });
+    } catch (error) {
+        next(error);
     }
 };
-export const getProductById = async (req, res) => {
+
+
+export const getProductById = async (req, res, next) => {
     try {
         const { id } = req.params;
 
@@ -59,39 +79,53 @@ export const getProductById = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Product not found"
-            });
+            return errorResponse(
+                res,
+                "Product not found",
+                404
+            );
         }
 
-        res.status(200).json(result.rows[0]);
+        return successResponse(
+            res,
+            result.rows[0]
+        );
 
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            message: "Failed to get product"
-        });
+        next(error);
     }
 };
-export const updateProduct = async (req, res) => {
+
+
+export const updateProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
-
         const { name, price, stock_quantity } = req.body;
 
-        if (
-            !name ||
-            typeof name !== "string" ||
-            typeof price !== "number" ||
-            price < 0 ||
-            !Number.isInteger(stock_quantity) ||
-            stock_quantity < 0
-        ) {
-            return res.status(400).json({
-                message: "Invalid product data"
-            });
-        }
+       const normalizedName =
+    typeof name === "string" ? name.trim() : "";
+
+const normalizedPrice =
+    typeof price === "number" ? price : NaN;
+
+const normalizedStockQuantity =
+    typeof stock_quantity === "number"
+        ? stock_quantity
+        : NaN;
+
+if (
+    !normalizedName ||
+    !Number.isFinite(normalizedPrice) ||
+    normalizedPrice < 0 ||
+    !Number.isInteger(normalizedStockQuantity) ||
+    normalizedStockQuantity < 0
+) {
+    return errorResponse(
+        res,
+        "Invalid product data",
+        400
+    );
+}
 
         const result = await pool.query(
             `UPDATE products
@@ -100,26 +134,29 @@ export const updateProduct = async (req, res) => {
                  stock_quantity = $3
              WHERE id = $4
              RETURNING *`,
-            [name, price, stock_quantity, id]
+            [normalizedName, normalizedPrice, normalizedStockQuantity, id]
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Product not found"
-            });
+            return errorResponse(
+                res,
+                "Product not found",
+                404
+            );
         }
 
-        res.status(200).json(result.rows[0]);
+        return successResponse(
+            res,
+            result.rows[0]
+        );
 
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            message: "Failed to update product"
-        });
+        next(error);
     }
 };
-export const deleteProduct = async (req, res, next) => { 
+
+
+export const deleteProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
 
@@ -131,17 +168,22 @@ export const deleteProduct = async (req, res, next) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                message: "Product not found"
-            });
+            return errorResponse(
+                res,
+                "Product not found",
+                404
+            );
         }
 
-        res.status(200).json({
-            message: "Product deleted successfully",
-            product: result.rows[0]
-        });
+        return successResponse(
+            res,
+            {
+                message: "Product deleted successfully",
+                product: result.rows[0]
+            }
+        );
+
+    } catch (error) {
+        next(error);
     }
-catch (error) {
-    next(error);
-}
-    };
+};
