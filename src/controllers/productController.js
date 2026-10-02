@@ -3,6 +3,7 @@ import pool from "../db/database.js";
 import { successResponse, errorResponse } from "../utils/response.js";
 
 
+
 export const createProduct = async (req, res, next) => {
     try {
       const { name, price, stock_quantity } = req.body;
@@ -50,52 +51,145 @@ if (
     }
 };
 
-
 export const getProducts = async (req, res, next) => {
+
     try {
-        const result = await pool.query(
-            `SELECT * FROM products`
-        );
 
-        return successResponse(
-            res,
-            result.rows
-        );
+        // Pagination
+        const page =
+            req.query.page !== undefined
+                ? Number(req.query.page)
+                : 1;
 
-    } catch (error) {
-        next(error);
-    }
-};
+        const limit =
+            req.query.limit !== undefined
+                ? Number(req.query.limit)
+                : 10;
 
+        // Search
+        const search =
+            typeof req.query.search === "string"
+                ? req.query.search.trim()
+                : "";
 
-export const getProductById = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-
-        const result = await pool.query(
-            `SELECT * FROM products
-             WHERE id = $1`,
-            [id]
-        );
-
-        if (result.rows.length === 0) {
+        if (
+            !Number.isInteger(page) ||
+            page < 1 ||
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 100
+        ) {
             return errorResponse(
                 res,
-                "Product not found",
-                404
+                "Invalid pagination parameters",
+                400
             );
         }
 
+        const offset = (page - 1) * limit;
+
+        const searchPattern = `%${search}%`;
+
+        // Get products
+        const result = await pool.query(
+            `SELECT *
+             FROM products
+             WHERE name ILIKE $1
+             ORDER BY id DESC
+             LIMIT $2 OFFSET $3`,
+            [
+                searchPattern,
+                limit,
+                offset
+            ]
+        );
+
+        // Get total matching products
+        const countResult = await pool.query(
+            `SELECT COUNT(*) AS total
+             FROM products
+             WHERE name ILIKE $1`,
+            [searchPattern]
+        );
+
+        const total = Number(
+            countResult.rows[0].total
+        );
+
+        const totalPages = Math.ceil(
+            total / limit
+        );
+
         return successResponse(
             res,
-            result.rows[0]
+            {
+                products: result.rows,
+
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages,
+                    count: result.rows.length
+                }
+            }
         );
 
     } catch (error) {
+
         next(error);
+
     }
 };
 
+export const getProductById = async(req, res, next) => {
+
+
+try {
+
+
+const { id } = req.params;
+const result = await pool.query(
+
+
+       ` SELECT FROM products
+
+         WHERE id = $1`,
+
+        [id]
+
+    );
+
+    if (result.rows.length === 0) {
+
+        return errorResponse(
+
+            res,
+
+            "Product not found",
+
+            404
+
+        );
+
+    }
+
+    return successResponse(
+
+        res,
+
+        result.rows[0]
+
+    );
+
+} catch (error) {
+
+    next(error);
+
+}
+
+
+};
 
 export const updateProduct = async (req, res, next) => {
     try {
