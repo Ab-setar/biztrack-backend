@@ -215,8 +215,72 @@ export const createSale = async (req, res) => {
 
 
 export const getSales = async (req, res) => {
-
     try {
+        const page =
+            req.query.page !== undefined
+                ? Number(req.query.page)
+                : 1;
+
+        const limit =
+            req.query.limit !== undefined
+                ? Number(req.query.limit)
+                : 10;
+
+        const customerIdRaw = req.query.customer_id;
+
+        // Validate pagination
+        if (
+            !Number.isInteger(page) ||
+            page < 1 ||
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 100
+        ) {
+            return errorResponse(
+                res,
+                "Invalid pagination parameters",
+                400
+            );
+        }
+
+        const conditions = [];
+        const values = [];
+
+        // Customer filter
+        if (customerIdRaw !== undefined) {
+            const customerId = Number(customerIdRaw);
+
+            if (
+                !Number.isInteger(customerId) ||
+                customerId <= 0
+            ) {
+                return errorResponse(
+                    res,
+                    "Invalid customer_id",
+                    400
+                );
+            }
+
+            values.push(customerId);
+
+            conditions.push(
+                `sales.customer_id = $${values.length}`
+            );
+        }
+
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(" AND ")}`
+                : "";
+
+        const offset = (page - 1) * limit;
+
+        // Pagination parameters
+        values.push(limit);
+        const limitParameter = values.length;
+
+        values.push(offset);
+        const offsetParameter = values.length;
 
         const result = await pool.query(
             `SELECT
@@ -227,16 +291,44 @@ export const getSales = async (req, res) => {
              FROM sales
              JOIN customers
                 ON sales.customer_id = customers.id
-             ORDER BY sales.created_at DESC`
+             ${whereClause}
+             ORDER BY sales.created_at DESC
+             LIMIT $${limitParameter}
+             OFFSET $${offsetParameter}`,
+            values
+        );
+
+        // Count filtered sales
+        const countResult = await pool.query(
+            `SELECT COUNT(*) AS total
+             FROM sales
+             ${whereClause}`,
+            values.slice(0, -2)
+        );
+
+        const total = Number(
+            countResult.rows[0].total
+        );
+
+        const totalPages = Math.ceil(
+            total / limit
         );
 
         return successResponse(
             res,
-            result.rows
+            {
+                sales: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages,
+                    count: result.rows.length
+                }
+            }
         );
 
     } catch (error) {
-
         console.error(error);
 
         return errorResponse(

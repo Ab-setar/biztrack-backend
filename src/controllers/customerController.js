@@ -62,7 +62,7 @@ if (
         console.error(error);
 
         return errorResponse(
-            res,
+            res,  getProducts,
             "Failed to create customer",
             500
         );
@@ -72,13 +72,102 @@ if (
 
 export const getCustomers = async (req, res) => {
     try {
+        const page =
+            req.query.page !== undefined
+                ? Number(req.query.page)
+                : 1;
+
+        const limit =
+            req.query.limit !== undefined
+                ? Number(req.query.limit)
+                : 10;
+
+        const search =
+            typeof req.query.search === "string"
+                ? req.query.search.trim()
+                : "";
+
+        // Validate pagination
+        if (
+            !Number.isInteger(page) ||
+            page < 1 ||
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 100
+        ) {
+            return errorResponse(
+                res,
+                "Invalid pagination parameters",
+                400
+            );
+        }
+
+        const conditions = [];
+        const values = [];
+
+        // Customer search
+        if (search) {
+            values.push(`%${search}%`);
+
+            conditions.push(
+                `(name ILIKE $${values.length}
+                OR phone ILIKE $${values.length}
+                OR email ILIKE $${values.length})`
+            );
+        }
+
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(" AND ")}`
+                : "";
+
+        const offset = (page - 1) * limit;
+
+        // Add pagination values
+        values.push(limit);
+        const limitParameter = values.length;
+
+        values.push(offset);
+        const offsetParameter = values.length;
+
         const result = await pool.query(
-            `SELECT * FROM customers`
+            `SELECT *
+             FROM customers
+             ${whereClause}
+             ORDER BY id DESC
+             LIMIT $${limitParameter}
+             OFFSET $${offsetParameter}`,
+            values
+        );
+
+        // Count filtered customers
+        const countResult = await pool.query(
+            `SELECT COUNT(*) AS total
+             FROM customers
+             ${whereClause}`,
+            values.slice(0, -2)
+        );
+
+        const total = Number(
+            countResult.rows[0].total
+        );
+
+        const totalPages = Math.ceil(
+            total / limit
         );
 
         return successResponse(
             res,
-            result.rows
+            {
+                customers: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages,
+                    count: result.rows.length
+                }
+            }
         );
 
     } catch (error) {
