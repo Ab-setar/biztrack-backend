@@ -52,10 +52,7 @@ if (
 };
 
 export const getProducts = async (req, res, next) => {
-
     try {
-
-        // Pagination
         const page =
             req.query.page !== undefined
                 ? Number(req.query.page)
@@ -66,11 +63,14 @@ export const getProducts = async (req, res, next) => {
                 ? Number(req.query.limit)
                 : 10;
 
-        // Search
         const search =
             typeof req.query.search === "string"
                 ? req.query.search.trim()
                 : "";
+
+        const minPriceRaw = req.query.minPrice;
+        const maxPriceRaw = req.query.maxPrice;
+        const inStockRaw = req.query.inStock;
 
         if (
             !Number.isInteger(page) ||
@@ -86,30 +86,133 @@ export const getProducts = async (req, res, next) => {
             );
         }
 
+        const conditions = [];
+        const values = [];
+
+        // Search
+        if (search) {
+            values.push(`%${search}%`);
+
+            conditions.push(
+                `name ILIKE $${values.length}`
+            );
+        }
+
+        // Minimum price
+        let minPrice;
+
+        if (minPriceRaw !== undefined) {
+            minPrice = Number(minPriceRaw);
+
+            if (
+                !Number.isFinite(minPrice) ||
+                minPrice < 0
+            ) {
+                return errorResponse(
+                    res,
+                    "Invalid minimum price",
+                    400
+                );
+            }
+
+            values.push(minPrice);
+
+            conditions.push(
+                `price >= $${values.length}`
+            );
+        }
+
+        // Maximum price
+        let maxPrice;
+
+        if (maxPriceRaw !== undefined) {
+            maxPrice = Number(maxPriceRaw);
+
+            if (
+                !Number.isFinite(maxPrice) ||
+                maxPrice < 0
+            ) {
+                return errorResponse(
+                    res,
+                    "Invalid maximum price",
+                    400
+                );
+            }
+
+            values.push(maxPrice);
+
+            conditions.push(
+                `price <= $${values.length}`
+            );
+        }
+
+        // Make sure minPrice is not greater than maxPrice
+        if (
+            minPrice !== undefined &&
+            maxPrice !== undefined &&
+            minPrice > maxPrice
+        ) {
+            return errorResponse(
+                res,
+                "Minimum price cannot be greater than maximum price",
+                400
+            );
+        }
+
+        // Stock filter
+        if (inStockRaw !== undefined) {
+            if (
+                inStockRaw !== "true" &&
+                inStockRaw !== "false"
+            ) {
+                return errorResponse(
+                    res,
+                    "Invalid inStock value. Use true or false",
+                    400
+                );
+            }
+
+            if (inStockRaw === "true") {
+                conditions.push(
+                    "stock_quantity > 0"
+                );
+            } else {
+                conditions.push(
+                    "stock_quantity = 0"
+                );
+            }
+        }
+
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(" AND ")}`
+                : "";
+
         const offset = (page - 1) * limit;
 
-        const searchPattern = `%${search}%`;
+        // Add pagination values
+        values.push(limit);
+        const limitParameter = values.length;
 
-        // Get products
+        values.push(offset);
+        const offsetParameter = values.length;
+
         const result = await pool.query(
             `SELECT *
              FROM products
-             WHERE name ILIKE $1
+             ${whereClause}
              ORDER BY id DESC
-             LIMIT $2 OFFSET $3`,
-            [
-                searchPattern,
-                limit,
-                offset
-            ]
+             LIMIT $${limitParameter}
+             OFFSET $${offsetParameter}`,
+            values
         );
 
-        // Get total matching products
+        // Count filtered products
         const countResult = await pool.query(
             `SELECT COUNT(*) AS total
              FROM products
-             WHERE name ILIKE $1`,
-            [searchPattern]
+             ${whereClause}`,
+            values.slice(0, -2)
         );
 
         const total = Number(
@@ -124,7 +227,6 @@ export const getProducts = async (req, res, next) => {
             res,
             {
                 products: result.rows,
-
                 pagination: {
                     page,
                     limit,
@@ -136,9 +238,7 @@ export const getProducts = async (req, res, next) => {
         );
 
     } catch (error) {
-
         next(error);
-
     }
 };
 
