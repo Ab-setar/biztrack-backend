@@ -47,11 +47,7 @@ export const createProduct = async (
             !Number.isInteger(normalizedStockQuantity) ||
             normalizedStockQuantity < 0
         ) {
-            return errorResponse(
-                res,
-                "Invalid product data",
-                400
-            );
+            return errorResponse(res, "Invalid product data", 400);
         }
 
         const result = await pool.query(
@@ -59,19 +55,10 @@ export const createProduct = async (
              (name, price, stock_quantity)
              VALUES ($1, $2, $3)
              RETURNING *`,
-            [
-                normalizedName,
-                normalizedPrice,
-                normalizedStockQuantity
-            ]
+            [normalizedName, normalizedPrice, normalizedStockQuantity]
         );
 
-        return successResponse(
-            res,
-            result.rows[0],
-            201
-        );
-
+        return successResponse(res, result.rows[0], 201);
     } catch (error) {
         next(error);
     }
@@ -121,10 +108,7 @@ export const getProducts = async (
 
         if (search) {
             values.push(`%${search}%`);
-
-            conditions.push(
-                `name ILIKE $${values.length}`
-            );
+            conditions.push(`name ILIKE $${values.length}`);
         }
 
         let minPrice: number | undefined;
@@ -132,10 +116,7 @@ export const getProducts = async (
         if (minPriceRaw !== undefined) {
             minPrice = Number(minPriceRaw);
 
-            if (
-                !Number.isFinite(minPrice) ||
-                minPrice < 0
-            ) {
+            if (!Number.isFinite(minPrice) || minPrice < 0) {
                 return errorResponse(
                     res,
                     "Invalid minimum price",
@@ -144,10 +125,7 @@ export const getProducts = async (
             }
 
             values.push(minPrice);
-
-            conditions.push(
-                `price >= $${values.length}`
-            );
+            conditions.push(`price >= $${values.length}`);
         }
 
         let maxPrice: number | undefined;
@@ -155,10 +133,7 @@ export const getProducts = async (
         if (maxPriceRaw !== undefined) {
             maxPrice = Number(maxPriceRaw);
 
-            if (
-                !Number.isFinite(maxPrice) ||
-                maxPrice < 0
-            ) {
+            if (!Number.isFinite(maxPrice) || maxPrice < 0) {
                 return errorResponse(
                     res,
                     "Invalid maximum price",
@@ -167,10 +142,7 @@ export const getProducts = async (
             }
 
             values.push(maxPrice);
-
-            conditions.push(
-                `price <= $${values.length}`
-            );
+            conditions.push(`price <= $${values.length}`);
         }
 
         if (
@@ -198,13 +170,9 @@ export const getProducts = async (
             }
 
             if (inStockRaw === "true") {
-                conditions.push(
-                    "stock_quantity > 0"
-                );
+                conditions.push("stock_quantity > 0");
             } else {
-                conditions.push(
-                    "stock_quantity = 0"
-                );
+                conditions.push("stock_quantity = 0");
             }
         }
 
@@ -216,11 +184,9 @@ export const getProducts = async (
         const offset = (page - 1) * limit;
 
         values.push(limit);
-
         const limitParameter = values.length;
 
         values.push(offset);
-
         const offsetParameter = values.length;
 
         const result = await pool.query(
@@ -240,28 +206,20 @@ export const getProducts = async (
             values.slice(0, -2)
         );
 
-        const total = Number(
-            countResult.rows[0].total
-        );
+        const total = Number(countResult.rows[0].total);
 
-        const totalPages = Math.ceil(
-            total / limit
-        );
+        const totalPages = Math.ceil(total / limit);
 
-        return successResponse(
-            res,
-            {
-                products: result.rows,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    totalPages,
-                    count: result.rows.length
-                }
+        return successResponse(res, {
+            products: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                count: result.rows.length
             }
-        );
-
+        });
     } catch (error) {
         next(error);
     }
@@ -283,18 +241,10 @@ export const getProductById = async (
         );
 
         if (result.rows.length === 0) {
-            return errorResponse(
-                res,
-                "Product not found",
-                404
-            );
+            return errorResponse(res, "Product not found", 404);
         }
 
-        return successResponse(
-            res,
-            result.rows[0]
-        );
-
+        return successResponse(res, result.rows[0]);
     } catch (error) {
         next(error);
     }
@@ -307,22 +257,13 @@ export const updateProduct = async (
 ) => {
     try {
         const { id } = req.params;
-
-        const {
-            name,
-            price,
-            stock_quantity
-        } = req.body;
+        const { name, price, stock_quantity } = req.body;
 
         const normalizedName =
-            typeof name === "string"
-                ? name.trim()
-                : "";
+            typeof name === "string" ? name.trim() : "";
 
         const normalizedPrice =
-            typeof price === "number"
-                ? price
-                : NaN;
+            typeof price === "number" ? price : NaN;
 
         const normalizedStockQuantity =
             typeof stock_quantity === "number"
@@ -336,11 +277,7 @@ export const updateProduct = async (
             !Number.isInteger(normalizedStockQuantity) ||
             normalizedStockQuantity < 0
         ) {
-            return errorResponse(
-                res,
-                "Invalid product data",
-                400
-            );
+            return errorResponse(res, "Invalid product data", 400);
         }
 
         const result = await pool.query(
@@ -359,18 +296,10 @@ export const updateProduct = async (
         );
 
         if (result.rows.length === 0) {
-            return errorResponse(
-                res,
-                "Product not found",
-                404
-            );
+            return errorResponse(res, "Product not found", 404);
         }
 
-        return successResponse(
-            res,
-            result.rows[0]
-        );
-
+        return successResponse(res, result.rows[0]);
     } catch (error) {
         next(error);
     }
@@ -392,21 +321,13 @@ export const deleteProduct = async (
         );
 
         if (result.rows.length === 0) {
-            return errorResponse(
-                res,
-                "Product not found",
-                404
-            );
+            return errorResponse(res, "Product not found", 404);
         }
 
-        return successResponse(
-            res,
-            {
-                message: "Product deleted successfully",
-                product: result.rows[0]
-            }
-        );
-
+        return successResponse(res, {
+            message: "Product deleted successfully",
+            product: result.rows[0]
+        });
     } catch (error) {
         next(error);
     }

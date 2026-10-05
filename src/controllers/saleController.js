@@ -120,12 +120,11 @@ export const createSale = async (req, res) => {
             if (product.stock_quantity < quantity) {
                 await client.query("ROLLBACK");
 
-                return res.status(400).json({
-                    success: false,
-                    message: `Insufficient stock for ${product.name}`,
-                    available: product.stock_quantity,
-                    requested: quantity
-                });
+                return errorResponse(
+                    res,
+                    `Insufficient stock for ${product.name}`,
+                    400
+                );
             }
 
             // 9. Calculate item total
