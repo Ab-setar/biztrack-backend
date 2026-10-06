@@ -1,3 +1,5 @@
+import { Request, Response } from "express";
+
 import pool from "../db/database.js";
 
 import {
@@ -5,46 +7,66 @@ import {
     errorResponse
 } from "../utils/response.js";
 
-export const createCustomer = async (req, res) => {
+interface CustomerBody {
+    name?: unknown;
+    phone?: unknown;
+    email?: unknown;
+}
+
+interface CustomerParams {
+    id: string;
+}
+
+interface CustomerQuery {
+    page?: string;
+    limit?: string;
+    search?: string;
+}
+
+export const createCustomer = async (
+    req: Request<{}, {}, CustomerBody>,
+    res: Response
+) => {
     try {
-       
-const { name, phone, email } = req.body;
+        const { name, phone, email } = req.body;
 
-const normalizedName =
-    typeof name === "string" ? name.trim() : "";
+        const normalizedName =
+            typeof name === "string" ? name.trim() : "";
 
-const normalizedPhone =
-    typeof phone === "string" ? phone.trim() : phone;
+        const normalizedPhone =
+            typeof phone === "string" ? phone.trim() : phone;
 
-const normalizedEmail =
-    typeof email === "string"
-        ? email.trim().toLowerCase()
-        : email;
+        const normalizedEmail =
+            typeof email === "string"
+                ? email.trim().toLowerCase()
+                : email;
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-if (
-    !normalizedName ||
-    (normalizedPhone !== undefined && !normalizedPhone) ||
-    (normalizedEmail !== undefined && !normalizedEmail)
-) {
-    return errorResponse(
-        res,
-        "Invalid customer data",
-        400
-    );
-}
+        if (
+            !normalizedName ||
+            (normalizedPhone !== undefined && !normalizedPhone) ||
+            (normalizedEmail !== undefined && !normalizedEmail)
+        ) {
+            return errorResponse(
+                res,
+                "Invalid customer data",
+                400
+            );
+        }
 
-if (
-    normalizedEmail !== undefined &&
-    !emailRegex.test(normalizedEmail)
-) {
-    return errorResponse(
-        res,
-        "Invalid email address",
-        400
-    );
-}
+        if (
+            normalizedEmail !== undefined &&
+            typeof normalizedEmail === "string" &&
+            !emailRegex.test(normalizedEmail)
+        ) {
+            return errorResponse(
+                res,
+                "Invalid email address",
+                400
+            );
+        }
+
         const result = await pool.query(
             `INSERT INTO customers (name, phone, email)
              VALUES ($1, $2, $3)
@@ -62,7 +84,7 @@ if (
         console.error(error);
 
         return errorResponse(
-            res,  getProducts,
+            res,
             "Failed to create customer",
             500
         );
@@ -70,7 +92,10 @@ if (
 };
 
 
-export const getCustomers = async (req, res) => {
+export const getCustomers = async (
+    req: Request<{}, {}, {}, CustomerQuery>,
+    res: Response
+) => {
     try {
         const page =
             req.query.page !== undefined
@@ -87,7 +112,6 @@ export const getCustomers = async (req, res) => {
                 ? req.query.search.trim()
                 : "";
 
-        // Validate pagination
         if (
             !Number.isInteger(page) ||
             page < 1 ||
@@ -102,10 +126,9 @@ export const getCustomers = async (req, res) => {
             );
         }
 
-        const conditions = [];
-        const values = [];
+        const conditions: string[] = [];
+        const values: unknown[] = [];
 
-        // Customer search
         if (search) {
             values.push(`%${search}%`);
 
@@ -123,7 +146,6 @@ export const getCustomers = async (req, res) => {
 
         const offset = (page - 1) * limit;
 
-        // Add pagination values
         values.push(limit);
         const limitParameter = values.length;
 
@@ -140,7 +162,6 @@ export const getCustomers = async (req, res) => {
             values
         );
 
-        // Count filtered customers
         const countResult = await pool.query(
             `SELECT COUNT(*) AS total
              FROM customers
@@ -182,7 +203,10 @@ export const getCustomers = async (req, res) => {
 };
 
 
-export const getCustomerById = async (req, res) => {
+export const getCustomerById = async (
+    req: Request<CustomerParams>,
+    res: Response
+) => {
     try {
         const { id } = req.params;
 
@@ -217,46 +241,50 @@ export const getCustomerById = async (req, res) => {
 };
 
 
-export const updateCustomer = async (req, res) => {
+export const updateCustomer = async (
+    req: Request<CustomerParams, {}, CustomerBody>,
+    res: Response
+) => {
     try {
         const { id } = req.params;
         const { name, phone, email } = req.body;
 
-const normalizedName =
-    typeof name === "string" ? name.trim() : "";
+        const normalizedName =
+            typeof name === "string" ? name.trim() : "";
 
-const normalizedPhone =
-    typeof phone === "string" ? phone.trim() : phone;
+        const normalizedPhone =
+            typeof phone === "string" ? phone.trim() : phone;
 
-const normalizedEmail =
-    typeof email === "string"
-        ? email.trim().toLowerCase()
-        : email;
+        const normalizedEmail =
+            typeof email === "string"
+                ? email.trim().toLowerCase()
+                : email;
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-if (
-    !normalizedName ||
-    (normalizedPhone !== undefined && !normalizedPhone) ||
-    (normalizedEmail !== undefined && !normalizedEmail)
-) {
-    return errorResponse(
-        res,
-        "Invalid customer data",
-        400
-    );
-}
+        if (
+            !normalizedName ||
+            (normalizedPhone !== undefined && !normalizedPhone) ||
+            (normalizedEmail !== undefined && !normalizedEmail)
+        ) {
+            return errorResponse(
+                res,
+                "Invalid customer data",
+                400
+            );
+        }
 
-if (
-    normalizedEmail !== undefined &&
-    !emailRegex.test(normalizedEmail)
-) {
-    return errorResponse(
-        res,
-        "Invalid email address",
-        400
-    );
-}
+        if (
+            normalizedEmail !== undefined &&
+            typeof normalizedEmail === "string" &&
+            !emailRegex.test(normalizedEmail)
+        ) {
+            return errorResponse(
+                res,
+                "Invalid email address",
+                400
+            );
+        }
 
         const result = await pool.query(
             `UPDATE customers
@@ -293,7 +321,10 @@ if (
 };
 
 
-export const deleteCustomer = async (req, res) => {
+export const deleteCustomer = async (
+    req: Request<CustomerParams>,
+    res: Response
+) => {
     try {
         const { id } = req.params;
 

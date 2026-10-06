@@ -1,11 +1,38 @@
+import { Request, Response } from "express";
+
 import pool from "../db/database.js";
+
 import {
     successResponse,
     errorResponse
 } from "../utils/response.js";
 
 
-export const createSale = async (req, res) => {
+interface SaleItemInput {
+    product_id: unknown;
+    quantity: unknown;
+}
+
+interface CreateSaleBody {
+    customer_id: unknown;
+    items: unknown;
+}
+
+interface SaleQuery {
+    page?: string;
+    limit?: string;
+    customer_id?: string;
+}
+
+interface SaleParams {
+    id: string;
+}
+
+
+export const createSale = async (
+    req: Request<{}, {}, CreateSaleBody>,
+    res: Response
+) => {
 
     const client = await pool.connect();
 
@@ -31,10 +58,12 @@ export const createSale = async (req, res) => {
         }
 
         // 3. Normalize and validate every sale item
-        const normalizedItems = items.map((item) => ({
-            product_id: Number(item.product_id),
-            quantity: Number(item.quantity)
-        }));
+        const normalizedItems = (items as SaleItemInput[]).map(
+            (item) => ({
+                product_id: Number(item.product_id),
+                quantity: Number(item.quantity)
+            })
+        );
 
         for (const item of normalizedItems) {
 
@@ -89,7 +118,12 @@ export const createSale = async (req, res) => {
         }
 
         let totalAmount = 0;
-        const products = [];
+
+        const products: {
+            product_id: number;
+            quantity: number;
+            unit_price: number | string;
+        }[] = [];
 
         // 7. Check every product
         for (const item of normalizedItems) {
@@ -148,7 +182,7 @@ export const createSale = async (req, res) => {
              RETURNING *`,
             [
                 customerId,
-                req.user.userId,
+                req.user?.userId,
                 totalAmount
             ]
         );
@@ -213,8 +247,12 @@ export const createSale = async (req, res) => {
 };
 
 
-export const getSales = async (req, res) => {
+export const getSales = async (
+    req: Request<{}, {}, {}, SaleQuery>,
+    res: Response
+) => {
     try {
+
         const page =
             req.query.page !== undefined
                 ? Number(req.query.page)
@@ -242,11 +280,12 @@ export const getSales = async (req, res) => {
             );
         }
 
-        const conditions = [];
-        const values = [];
+        const conditions: string[] = [];
+        const values: unknown[] = [];
 
         // Customer filter
         if (customerIdRaw !== undefined) {
+
             const customerId = Number(customerIdRaw);
 
             if (
@@ -328,6 +367,7 @@ export const getSales = async (req, res) => {
         );
 
     } catch (error) {
+
         console.error(error);
 
         return errorResponse(
@@ -339,7 +379,10 @@ export const getSales = async (req, res) => {
 };
 
 
-export const getSaleById = async (req, res) => {
+export const getSaleById = async (
+    req: Request<SaleParams>,
+    res: Response
+) => {
 
     try {
 
@@ -398,4 +441,3 @@ export const getSaleById = async (req, res) => {
         );
     }
 };
-

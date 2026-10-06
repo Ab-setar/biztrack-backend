@@ -16,26 +16,30 @@ router.post(
     authenticateToken,
     createCustomer
 );
+
 router.get(
     "/",
     authenticateToken,
     getCustomers
 );
-router.get(
+
+router.get<{ id: string }>(
     "/:id",
     authenticateToken,
     getCustomerById
 );
-router.put(
+
+router.put<{ id: string }>(
     "/:id",
     authenticateToken,
     updateCustomer
 );
-router.delete(
+
+router.delete<{ id: string }>(
     "/:id",
     authenticateToken,
     authorizeRoles("owner"),
     deleteCustomer
-    );
+);
 
 export default router;

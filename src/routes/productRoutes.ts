@@ -13,13 +13,9 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-router.get(
-    "/",
-    authenticateToken,
-    getProducts
-);
+router.get("/", authenticateToken, getProducts);
 
-router.get(
+router.get<{ id: string }>(
     "/:id",
     authenticateToken,
     getProductById
@@ -31,13 +27,13 @@ router.post(
     createProduct
 );
 
-router.put(
+router.put<{ id: string }>(
     "/:id",
     authenticateToken,
     updateProduct
 );
 
-router.delete(
+router.delete<{ id: string }>(
     "/:id",
     authenticateToken,
     authorizeRoles("owner"),

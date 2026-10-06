@@ -12,13 +12,9 @@ import { errorHandler } from "./middleware/errorMiddleware.js";
 
 const app = express();
 
-
 app.use(helmet());
 app.use(cors());
-
-
 app.use(express.json());
-
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -31,17 +27,12 @@ const loginLimiter = rateLimit({
     }
 });
 
-
-
-
-
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth", authRoutes);
-
 
 app.use(errorHandler);
 

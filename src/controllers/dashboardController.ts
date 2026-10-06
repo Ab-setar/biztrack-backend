@@ -1,7 +1,12 @@
+import { Request, Response } from "express";
+
 import pool from "../db/database.js";
 import { successResponse, errorResponse } from "../utils/response.js";
 
-export const getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (
+    req: Request,
+    res: Response
+) => {
     try {
         const productsResult = await pool.query(
             `SELECT COUNT(*) AS total

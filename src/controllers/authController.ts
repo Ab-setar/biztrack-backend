@@ -1,18 +1,32 @@
+import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../db/database.js";
 
-export const registerUser = async (req, res) => {
+interface RegisterBody {
+    name?: string;
+    email?: string;
+    password?: string;
+}
+
+interface LoginBody {
+    email?: string;
+    password?: string;
+}
+
+export const registerUser = async (
+    req: Request<{}, {}, RegisterBody>,
+    res: Response
+) => {
     try {
-         const { name, email, password } = req.body;
-        // 1. Validate required fields
+        const { name, email, password } = req.body;
+
         if (!name || !email || !password) {
             return res.status(400).json({
                 message: "Name, email and password are required"
             });
         }
 
-        // 2. Check if email already exists
         const existingUser = await pool.query(
             `SELECT id
              FROM users
@@ -26,24 +40,17 @@ export const registerUser = async (req, res) => {
             });
         }
 
-        // 3. Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 4. Create user
-const result = await pool.query(
-    `INSERT INTO users
-     (name, email, password, role)
-     VALUES ($1, $2, $3, 'employee')
-     RETURNING id, name, email, role, created_at`,
-    [
-        name,
-        email,
-        hashedPassword
-    ]
-);
+        const result = await pool.query(
+            `INSERT INTO users
+             (name, email, password, role)
+             VALUES ($1, $2, $3, 'employee')
+             RETURNING id, name, email, role, created_at`,
+            [name, email, hashedPassword]
+        );
 
-        // 5. Return user without password
-        res.status(201).json({
+        return res.status(201).json({
             message: "User registered successfully",
             user: result.rows[0]
         });
@@ -51,23 +58,25 @@ const result = await pool.query(
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             message: "Failed to register user"
         });
     }
 };
-export const loginUser = async (req, res) => {
+
+export const loginUser = async (
+    req: Request<{}, {}, LoginBody>,
+    res: Response
+) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Validate input
         if (!email || !password) {
             return res.status(400).json({
                 message: "Email and password are required"
             });
         }
 
-        // 2. Find user by email
         const result = await pool.query(
             `SELECT *
              FROM users
@@ -83,7 +92,6 @@ export const loginUser = async (req, res) => {
 
         const user = result.rows[0];
 
-        // 3. Compare password with hashed password
         const passwordMatch = await bcrypt.compare(
             password,
             user.password
@@ -95,20 +103,18 @@ export const loginUser = async (req, res) => {
             });
         }
 
-        // 4. Create JWT
         const token = jwt.sign(
             {
                 userId: user.id,
                 role: user.role
             },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET as string,
             {
                 expiresIn: "1h"
             }
         );
 
-        // 5. Send token to frontend
-        res.status(200).json({
+        return res.status(200).json({
             message: "Login successful",
             token,
             user: {
@@ -122,7 +128,7 @@ export const loginUser = async (req, res) => {
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             message: "Failed to login"
         });
     }

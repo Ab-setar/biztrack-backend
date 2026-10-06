@@ -1,18 +1,20 @@
+import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-export const authenticateToken = (req, res, next) => {
+export const authenticateToken = (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
     try {
-        // 1. Get Authorization header
         const authHeader = req.headers.authorization;
 
-        // 2. Check if header exists
         if (!authHeader) {
             return res.status(401).json({
                 message: "Authentication required"
             });
         }
 
-        // 3. Check Bearer format
         const parts = authHeader.split(" ");
 
         if (parts.length !== 2 || parts[0] !== "Bearer") {
@@ -21,19 +23,21 @@ export const authenticateToken = (req, res, next) => {
             });
         }
 
-        // 4. Get token
         const token = parts[1];
 
-        // 5. Verify token
         const decoded = jwt.verify(
             token,
-            process.env.JWT_SECRET
+            process.env.JWT_SECRET as string
         );
 
-        // 6. Store user information in request
+        if (typeof decoded === "string") {
+            return res.status(401).json({
+                message: "Invalid token"
+            });
+        }
+
         req.user = decoded;
 
-        // 7. Continue to controller
         next();
 
     } catch (error) {

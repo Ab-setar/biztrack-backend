@@ -1,4 +1,11 @@
-export const errorHandler = (error, req, res, next) => {
+import { Request, Response, NextFunction } from "express";
+
+export const errorHandler = (
+    error: any,
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
     console.error(error);
 
     if (error.code === "23503") {
