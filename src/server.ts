@@ -11,6 +11,12 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
 
 const app = express();
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "BizTrack API is healthy"
+    });
+});
 
 app.use(helmet());
 app.use(cors());
