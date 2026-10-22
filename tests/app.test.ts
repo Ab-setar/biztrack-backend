@@ -13,3 +13,27 @@ describe("GET /health", () => {
         });
     });
 });
+
+describe("Authentication validation", () => {
+    it("rejects registration when required fields are missing", async () => {
+        const response = await request(app)
+            .post("/api/auth/register")
+            .send({ email: "test@example.com" });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: "Name, email and password are required"
+        });
+    });
+
+    it("rejects login when required fields are missing", async () => {
+        const response = await request(app)
+            .post("/api/auth/login")
+            .send({ email: "test@example.com" });
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            message: "Email and password are required"
+        });
+    });
+});
