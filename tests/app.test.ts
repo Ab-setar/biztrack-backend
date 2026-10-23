@@ -138,3 +138,86 @@ describe("Customer API validation", () => {
     });
 });
 
+
+describe("Sales API validation", () => {
+    const token = jwt.sign(
+        { userId: 1, role: "owner" },
+        process.env.JWT_SECRET as string
+    );
+
+    it("rejects sales requests without authentication", async () => {
+        const response = await request(app)
+            .get("/api/sales");
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Authentication required");
+    });
+
+    it("rejects a sale without valid customer or items", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                customer_id: 0,
+                items: []
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Invalid customer or sale items"
+        );
+    });
+
+    it("rejects invalid sale item quantities", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                customer_id: 1,
+                items: [
+                    { product_id: 1, quantity: 0 }
+                ]
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Invalid sale item data");
+    });
+
+    it("rejects duplicate products in a sale", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                customer_id: 1,
+                items: [
+                    { product_id: 1, quantity: 1 },
+                    { product_id: 1, quantity: 2 }
+                ]
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "A product cannot appear more than once in a sale"
+        );
+    });
+
+    it("rejects invalid sales pagination", async () => {
+        const response = await request(app)
+            .get("/api/sales?page=0")
+            .set("Authorization", `Bearer ${token}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Invalid pagination parameters"
+        );
+    });
+
+    it("rejects an invalid customer_id filter", async () => {
+        const response = await request(app)
+            .get("/api/sales?customer_id=0")
+            .set("Authorization", `Bearer ${token}`);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Invalid customer_id");
+    });
+});
