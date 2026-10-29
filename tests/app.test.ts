@@ -10,8 +10,11 @@ import pool from "../src/db/database.js";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../src/app.js";
+
+let testUserId: number;
 let testCustomerId: number;
 let testProductId: number;
+let salesToken: string;
 
 beforeAll(async () => {
     if (process.env.DB_NAME !== "biztrack_test") {
@@ -20,11 +23,33 @@ beforeAll(async () => {
         );
     }
 
+    const userResult = await pool.query(
+        `INSERT INTO users (name, email, password, role)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [
+            "BizTrack Test User",
+            "biztrack-test-user@example.com",
+            "test-password-hash",
+            "owner"
+        ]
+    );
+
+    testUserId = userResult.rows[0].id;
+
+    salesToken = jwt.sign(
+        { userId: testUserId, role: "owner" },
+        process.env.JWT_SECRET as string
+    );
+
     const customerResult = await pool.query(
         `INSERT INTO customers (name, email)
          VALUES ($1, $2)
          RETURNING id`,
-        ["BizTrack Test Customer", "biztrack-test@example.com"]
+        [
+            "BizTrack Test Customer",
+            "biztrack-test@example.com"
+        ]
     );
 
     testCustomerId = customerResult.rows[0].id;
@@ -38,6 +63,7 @@ beforeAll(async () => {
 
     testProductId = productResult.rows[0].id;
 });
+
 afterAll(async () => {
     if (process.env.DB_NAME !== "biztrack_test") {
         throw new Error(
@@ -46,6 +72,23 @@ afterAll(async () => {
     }
 
     try {
+        if (testCustomerId && testUserId) {
+            await pool.query(
+                `DELETE FROM sale_items
+                 WHERE sale_id IN (
+                     SELECT id FROM sales
+                     WHERE customer_id = $1 AND user_id = $2
+                 )`,
+                [testCustomerId, testUserId]
+            );
+
+            await pool.query(
+                `DELETE FROM sales
+                 WHERE customer_id = $1 AND user_id = $2`,
+                [testCustomerId, testUserId]
+            );
+        }
+
         if (testCustomerId) {
             await pool.query(
                 "DELETE FROM customers WHERE id = $1",
@@ -59,10 +102,18 @@ afterAll(async () => {
                 [testProductId]
             );
         }
+
+        if (testUserId) {
+            await pool.query(
+                "DELETE FROM users WHERE id = $1",
+                [testUserId]
+            );
+        }
     } finally {
         await pool.end();
     }
 });
+
 describe("GET /health", () => {
     it("returns a successful health response", async () => {
         const response = await request(app).get("/health");
@@ -110,7 +161,9 @@ describe("Product API validation", () => {
             .get("/api/products");
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe("Authentication required");
+        expect(response.body.message).toBe(
+            "Authentication required"
+        );
     });
 
     it("rejects invalid product data", async () => {
@@ -124,7 +177,9 @@ describe("Product API validation", () => {
             });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid product data");
+        expect(response.body.message).toBe(
+            "Invalid product data"
+        );
     });
 
     it("rejects invalid pagination parameters", async () => {
@@ -133,7 +188,9 @@ describe("Product API validation", () => {
             .set("Authorization", `Bearer ${token}`);
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid pagination parameters");
+        expect(response.body.message).toBe(
+            "Invalid pagination parameters"
+        );
     });
 });
 
@@ -148,7 +205,9 @@ describe("Customer API validation", () => {
             .get("/api/customers");
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe("Authentication required");
+        expect(response.body.message).toBe(
+            "Authentication required"
+        );
     });
 
     it("rejects customer data with a missing name", async () => {
@@ -162,7 +221,9 @@ describe("Customer API validation", () => {
             });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid customer data");
+        expect(response.body.message).toBe(
+            "Invalid customer data"
+        );
     });
 
     it("rejects an invalid customer email", async () => {
@@ -175,7 +236,9 @@ describe("Customer API validation", () => {
             });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid email address");
+        expect(response.body.message).toBe(
+            "Invalid email address"
+        );
     });
 
     it("rejects invalid customer pagination", async () => {
@@ -184,7 +247,9 @@ describe("Customer API validation", () => {
             .set("Authorization", `Bearer ${token}`);
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid pagination parameters");
+        expect(response.body.message).toBe(
+            "Invalid pagination parameters"
+        );
     });
 
     it("returns 404 when a customer does not exist", async () => {
@@ -193,49 +258,53 @@ describe("Customer API validation", () => {
             .set("Authorization", `Bearer ${token}`);
 
         expect(response.status).toBe(404);
-        expect(response.body.message).toBe("Customer not found");
+        expect(response.body.message).toBe(
+            "Customer not found"
+        );
     });
 });
 
+describe("Sales API validation", () => {
+    it("creates a sale and decreases product stock", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${salesToken}`)
+            .send({
+                customer_id: testCustomerId,
+                items: [
+                    {
+                        product_id: testProductId,
+                        quantity: 2
+                    }
+                ]
+            });
 
-describe("Sales API validation", () => {it("creates a sale and decreases product stock", async () => {
-    const response = await request(app)
-        .post("/api/sales")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-            customer_id: testCustomerId,
-            items: [
-                { product_id: testProductId, quantity: 2 }
-            ]
-        });
+        expect(response.status).toBe(201);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.sale.total_amount).toBe("200.00");
 
-    expect(response.status).toBe(201);
-    expect(response.body.sale.total_amount).toBe("200.00");
+        const productResult = await pool.query(
+            "SELECT stock_quantity FROM products WHERE id = $1",
+            [testProductId]
+        );
 
-    const productResult = await pool.query(
-        "SELECT stock_quantity FROM products WHERE id = $1",
-        [testProductId]
-    );
-
-    expect(productResult.rows[0].stock_quantity).toBe(8);
-});
-    const token = jwt.sign(
-        { userId: 1, role: "owner" },
-        process.env.JWT_SECRET as string
-    );
+        expect(productResult.rows[0].stock_quantity).toBe(8);
+    });
 
     it("rejects sales requests without authentication", async () => {
         const response = await request(app)
             .get("/api/sales");
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe("Authentication required");
+        expect(response.body.message).toBe(
+            "Authentication required"
+        );
     });
 
     it("rejects a sale without valid customer or items", async () => {
         const response = await request(app)
             .post("/api/sales")
-            .set("Authorization", `Bearer ${token}`)
+            .set("Authorization", `Bearer ${salesToken}`)
             .send({
                 customer_id: 0,
                 items: []
@@ -246,75 +315,102 @@ describe("Sales API validation", () => {it("creates a sale and decreases product
             "Invalid customer or sale items"
         );
     });
-it("rejects a sale when the customer does not exist", async () => {
-    const response = await request(app)
-        .post("/api/sales")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-            customer_id: 999999999,
-            items: [
-                { product_id: 2, quantity: 1 }
-            ]
-        });
 
-    expect(response.status).toBe(404);
-    expect(response.body.message).toBe("Customer not found");
-});
-it("rejects a sale when the product does not exist", async () => {
-    const response = await request(app)
-        .post("/api/sales")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-            customer_id: testCustomerId,
-            items: [
-                { product_id: 999999999, quantity: 1 }
-            ]
-        });
-
-    expect(response.status).toBe(404);
-    expect(response.body.message).toBe(
-        "Product 999999999 not found"
-    );
-});
-it("rejects a sale when stock is insufficient", async () => {
-    const response = await request(app)
-        .post("/api/sales")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-    customer_id: testCustomerId,
-    items: [
-        { product_id: testProductId, quantity: 11 }
-    ]
-});
-    expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-        "Insufficient stock for Laptop Pro"
-    );
-});
-    it("rejects invalid sale item quantities", async () => {
+    it("rejects a sale when the customer does not exist", async () => {
         const response = await request(app)
             .post("/api/sales")
-            .set("Authorization", `Bearer ${token}`)
+            .set("Authorization", `Bearer ${salesToken}`)
             .send({
-                customer_id: 1,
+                customer_id: 999999999,
                 items: [
-                    { product_id: 1, quantity: 0 }
+                    {
+                        product_id: testProductId,
+                        quantity: 1
+                    }
+                ]
+            });
+
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe(
+            "Customer not found"
+        );
+    });
+
+    it("rejects a sale when the product does not exist", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${salesToken}`)
+            .send({
+                customer_id: testCustomerId,
+                items: [
+                    {
+                        product_id: 999999999,
+                        quantity: 1
+                    }
+                ]
+            });
+
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe(
+            "Product 999999999 not found"
+        );
+    });
+
+    it("rejects a sale when stock is insufficient", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${salesToken}`)
+            .send({
+                customer_id: testCustomerId,
+                items: [
+                    {
+                        product_id: testProductId,
+                        quantity: 11
+                    }
                 ]
             });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid sale item data");
+        expect(response.body.message).toBe(
+            "Insufficient stock for Laptop Pro"
+        );
+    });
+
+    it("rejects invalid sale item quantities", async () => {
+        const response = await request(app)
+            .post("/api/sales")
+            .set("Authorization", `Bearer ${salesToken}`)
+            .send({
+                customer_id: testCustomerId,
+                items: [
+                    {
+                        product_id: testProductId,
+                        quantity: 0
+                    }
+                ]
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Invalid sale item data"
+        );
     });
 
     it("rejects duplicate products in a sale", async () => {
         const response = await request(app)
             .post("/api/sales")
-            .set("Authorization", `Bearer ${token}`)
+            .set("Authorization", `Bearer ${salesToken}`)
             .send({
-                customer_id: 1,
+                customer_id: testCustomerId,
                 items: [
-                    { product_id: 1, quantity: 1 },
-                    { product_id: 1, quantity: 2 }
+                    {
+                        product_id: testProductId,
+                        quantity: 1
+                    },
+                    {
+                        product_id: testProductId,
+                        quantity: 2
+                    }
                 ]
             });
 
@@ -327,7 +423,7 @@ it("rejects a sale when stock is insufficient", async () => {
     it("rejects invalid sales pagination", async () => {
         const response = await request(app)
             .get("/api/sales?page=0")
-            .set("Authorization", `Bearer ${token}`);
+            .set("Authorization", `Bearer ${salesToken}`);
 
         expect(response.status).toBe(400);
         expect(response.body.message).toBe(
@@ -338,9 +434,11 @@ it("rejects a sale when stock is insufficient", async () => {
     it("rejects an invalid customer_id filter", async () => {
         const response = await request(app)
             .get("/api/sales?customer_id=0")
-            .set("Authorization", `Bearer ${token}`);
+            .set("Authorization", `Bearer ${salesToken}`);
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Invalid customer_id");
+        expect(response.body.message).toBe(
+            "Invalid customer_id"
+        );
     });
 });
