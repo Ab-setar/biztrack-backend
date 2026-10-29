@@ -192,6 +192,33 @@ describe("Product API validation", () => {
             "Invalid pagination parameters"
         );
     });
+
+    it("rejects product deletion by an employee", async () => {
+        const employeeToken = jwt.sign(
+            { id: 1, role: "employee" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .delete("/api/products/999999999")
+            .set("Authorization", `Bearer ${employeeToken}`);
+
+        expect(response.status).toBe(403);
+        expect(response.body.message).toBe(
+            "You do not have permission to perform this action"
+        );
+    });
+
+    it("allows an owner to reach the product deletion controller", async () => {
+        const response = await request(app)
+            .delete("/api/products/999999999")
+            .set("Authorization", `Bearer ${token}`);
+
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe(
+            "Product not found"
+        );
+    });
 });
 
 describe("Customer API validation", () => {
