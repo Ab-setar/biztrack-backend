@@ -166,6 +166,34 @@ describe("Product API validation", () => {
         );
     });
 
+    it("rejects an invalid JWT", async () => {
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", "Bearer invalid.token.value");
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            "Invalid or expired token"
+        );
+    });
+
+    it("rejects an expired JWT", async () => {
+        const expiredToken = jwt.sign(
+            { id: 1, role: "owner" },
+            process.env.JWT_SECRET as string,
+            { expiresIn: -1 }
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${expiredToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe(
+            "Invalid or expired token"
+        );
+    });
+
     it("rejects invalid product data", async () => {
         const response = await request(app)
             .post("/api/products")
