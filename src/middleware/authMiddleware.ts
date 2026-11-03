@@ -17,26 +17,34 @@ export const authenticateToken = (
 
         const parts = authHeader.split(" ");
 
-        if (parts.length !== 2 || parts[0] !== "Bearer") {
+        if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
             return res.status(401).json({
                 message: "Invalid authorization format"
             });
         }
 
-        const token = parts[1];
-
         const decoded = jwt.verify(
-            token,
+            parts[1],
             process.env.JWT_SECRET as string
         );
 
-        if (typeof decoded === "string") {
+        if (
+            typeof decoded === "string" ||
+            typeof decoded.userId !== "number" ||
+            !Number.isInteger(decoded.userId) ||
+            decoded.userId <= 0 ||
+            typeof decoded.role !== "string" ||
+            decoded.role.trim() === ""
+        ) {
             return res.status(401).json({
                 message: "Invalid token"
             });
         }
 
-        req.user = decoded;
+        req.user = {
+            userId: decoded.userId,
+            role: decoded.role
+        };
 
         next();
 

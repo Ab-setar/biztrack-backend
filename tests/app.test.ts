@@ -152,7 +152,7 @@ describe("Authentication validation", () => {
 
 describe("Product API validation", () => {
     const token = jwt.sign(
-        { id: 1, role: "owner" },
+        { userId: 1, role: "owner" },
         process.env.JWT_SECRET as string
     );
 
@@ -179,7 +179,7 @@ describe("Product API validation", () => {
 
     it("rejects an expired JWT", async () => {
         const expiredToken = jwt.sign(
-            { id: 1, role: "owner" },
+            { userId: 1, role: "owner" },
             process.env.JWT_SECRET as string,
             { expiresIn: -1 }
         );
@@ -223,7 +223,7 @@ describe("Product API validation", () => {
 
     it("rejects product deletion by an employee", async () => {
         const employeeToken = jwt.sign(
-            { id: 1, role: "employee" },
+            { userId: 1, role: "employee" },
             process.env.JWT_SECRET as string
         );
 
@@ -251,7 +251,7 @@ describe("Product API validation", () => {
 
 describe("Customer API validation", () => {
     const token = jwt.sign(
-        { id: 1, role: "owner" },
+        { userId: 1, role: "owner" },
         process.env.JWT_SECRET as string
     );
 
