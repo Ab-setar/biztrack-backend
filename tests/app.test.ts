@@ -1,4 +1,3 @@
-
 import {
     describe,
     it,
@@ -192,6 +191,92 @@ describe("Product API validation", () => {
         expect(response.body.message).toBe(
             "Invalid or expired token"
         );
+    });
+
+    // Malformed JWT payload tests
+
+    it("rejects a JWT with a missing userId", async () => {
+        const malformedToken = jwt.sign(
+            { role: "owner" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with a string userId", async () => {
+        const malformedToken = jwt.sign(
+            { userId: "1", role: "owner" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with a zero userId", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 0, role: "owner" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with a negative userId", async () => {
+        const malformedToken = jwt.sign(
+            { userId: -1, role: "owner" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with a missing role", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 1 },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with an empty role", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 1, role: "" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
     });
 
     it("rejects invalid product data", async () => {
