@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { isUserRole } from "../constants/roles.js";
 
 export const authenticateToken = (
     req: Request,
@@ -33,8 +34,7 @@ export const authenticateToken = (
             typeof decoded.userId !== "number" ||
             !Number.isInteger(decoded.userId) ||
             decoded.userId <= 0 ||
-            typeof decoded.role !== "string" ||
-            decoded.role.trim() === ""
+            !isUserRole(decoded.role)
         ) {
             return res.status(401).json({
                 message: "Invalid token"

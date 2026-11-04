@@ -279,6 +279,48 @@ describe("Product API validation", () => {
         expect(response.body.message).toBe("Invalid token");
     });
 
+    it("rejects a JWT with an unsupported role", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 1, role: "superadmin" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with an incorrectly capitalized role", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 1, role: "OWNER" },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
+    it("rejects a JWT with whitespace in its role", async () => {
+        const malformedToken = jwt.sign(
+            { userId: 1, role: "owner " },
+            process.env.JWT_SECRET as string
+        );
+
+        const response = await request(app)
+            .get("/api/products")
+            .set("Authorization", `Bearer ${malformedToken}`);
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe("Invalid token");
+    });
+
     it("rejects invalid product data", async () => {
         const response = await request(app)
             .post("/api/products")
