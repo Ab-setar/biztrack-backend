@@ -96,6 +96,9 @@ export const createSale = async (
             );
         }
 
+        // Lock products in a consistent order to prevent deadlocks
+        normalizedItems.sort((a, b) => a.product_id - b.product_id);
+
         // 5. Start transaction
         await client.query("BEGIN");
 
