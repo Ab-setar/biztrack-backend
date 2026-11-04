@@ -624,3 +624,62 @@ describe("Sales API validation", () => {
         );
     });
 });
+
+describe("Sales concurrency", () => {
+    it("allows only one sale when several employees buy the last item at once", async () => {
+        const productResult = await pool.query(
+            `INSERT INTO products (name, price, stock_quantity)
+             VALUES ($1, $2, $3)
+             RETURNING id`,
+            ["Last Item Test Product", 50, 1]
+        );
+
+        const productId = productResult.rows[0].id;
+
+        try {
+            const attempts = 5;
+
+            const responses = await Promise.all(
+                Array.from({ length: attempts }, () =>
+                    request(app)
+                        .post("/api/sales")
+                        .set("Authorization", `Bearer ${salesToken}`)
+                        .send({
+                            customer_id: testCustomerId,
+                            items: [
+                                {
+                                    product_id: productId,
+                                    quantity: 1
+                                }
+                            ]
+                        })
+                )
+            );
+
+            const statuses = responses.map((response) => response.status);
+
+            expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+            expect(statuses.filter((status) => status === 400)).toHaveLength(attempts - 1);
+
+            const stockResult = await pool.query(
+                "SELECT stock_quantity FROM products WHERE id = $1",
+                [productId]
+            );
+
+            expect(stockResult.rows[0].stock_quantity).toBe(0);
+        } finally {
+            await pool.query(
+                `DELETE FROM sales
+                 WHERE id IN (
+                     SELECT sale_id FROM sale_items WHERE product_id = $1
+                 )`,
+                [productId]
+            );
+
+            await pool.query(
+                "DELETE FROM products WHERE id = $1",
+                [productId]
+            );
+        }
+    });
+});
