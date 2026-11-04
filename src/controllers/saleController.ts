@@ -35,6 +35,7 @@ export const createSale = async (
 ) => {
 
     const client = await pool.connect();
+    let rollbackFailed = false;
 
     try {
 
@@ -232,7 +233,12 @@ export const createSale = async (
 
     } catch (error) {
 
-        await client.query("ROLLBACK");
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackError) {
+            rollbackFailed = true;
+            console.error("Rollback failed:", rollbackError);
+        }
 
         console.error(error);
 
@@ -244,7 +250,9 @@ export const createSale = async (
 
     } finally {
 
-        client.release();
+        // Destroy the connection if rollback failed, so a broken
+        // connection is never returned to the pool
+        client.release(rollbackFailed);
 
     }
 };
