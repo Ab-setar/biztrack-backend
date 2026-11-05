@@ -1,3 +1,5 @@
+import { AppError } from "../utils/AppError.js";
+import { isDbErrorCode } from "../utils/dbErrors.js";
 import { Request, Response, NextFunction } from "express";
 import pool from "../db/database.js";
 import { successResponse, errorResponse } from "../utils/response.js";
@@ -329,6 +331,15 @@ export const deleteProduct = async (
             product: result.rows[0]
         });
     } catch (error) {
+        if (isDbErrorCode(error, "23503")) {
+            return next(
+                new AppError(
+                    "Product cannot be deleted because it is used in existing sales",
+                    409
+                )
+            );
+        }
+
         next(error);
     }
 };

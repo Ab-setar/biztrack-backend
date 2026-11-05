@@ -1,15 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-
-const hasErrorCode = (
-    error: unknown
-): error is { code: string } => {
-    return (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        typeof (error as { code: unknown }).code === "string"
-    );
-};
+import { AppError } from "../utils/AppError.js";
 
 export const errorHandler = (
     error: unknown,
@@ -17,14 +7,14 @@ export const errorHandler = (
     res: Response,
     _next: NextFunction
 ) => {
-    console.error(error);
-
-    if (hasErrorCode(error) && error.code === "23503") {
-        return res.status(409).json({
+    if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
             success: false,
-            message: "Product cannot be deleted because it is used in existing sales"
+            message: error.message
         });
     }
+
+    console.error(error);
 
     res.status(500).json({
         success: false,
