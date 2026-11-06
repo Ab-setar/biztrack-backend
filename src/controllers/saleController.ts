@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 
 import pool from "../db/database.js";
+import * as saleService from "../services/saleService.js";
 
 import {
     successResponse,
@@ -31,14 +32,10 @@ interface SaleParams {
 
 export const createSale = async (
     req: Request<{}, {}, CreateSaleBody>,
-    res: Response
+    res: Response,
+    next: NextFunction
 ) => {
-
-    const client = await pool.connect();
-    let rollbackFailed = false;
-
     try {
-
         const { customer_id, items } = req.body;
 
         // 1. Normalize input
@@ -67,7 +64,6 @@ export const createSale = async (
         );
 
         for (const item of normalizedItems) {
-
             if (
                 !Number.isInteger(item.product_id) ||
                 item.product_id <= 0 ||
@@ -84,12 +80,10 @@ export const createSale = async (
 
         // 4. Check for duplicate products
         const productIds = normalizedItems.map(
-            item => item.product_id
+            (item) => item.product_id
         );
 
-        const uniqueProductIds = new Set(productIds);
-
-        if (uniqueProductIds.size !== productIds.length) {
+        if (new Set(productIds).size !== productIds.length) {
             return errorResponse(
                 res,
                 "A product cannot appear more than once in a sale",
@@ -97,130 +91,12 @@ export const createSale = async (
             );
         }
 
-        // Lock products in a consistent order to prevent deadlocks
-        normalizedItems.sort((a, b) => a.product_id - b.product_id);
-
-        // 5. Start transaction
-        await client.query("BEGIN");
-
-        // 6. Check customer
-        const customerResult = await client.query(
-            `SELECT *
-             FROM customers
-             WHERE id = $1`,
-            [customerId]
+        // 5. Business rules and the transaction live in the service
+        const sale = await saleService.createSale(
+            customerId,
+            req.user?.userId,
+            normalizedItems
         );
-
-        if (customerResult.rows.length === 0) {
-            await client.query("ROLLBACK");
-
-            return errorResponse(
-                res,
-                "Customer not found",
-                404
-            );
-        }
-
-        let totalAmount = 0;
-
-        const products: {
-            product_id: number;
-            quantity: number;
-            unit_price: number | string;
-        }[] = [];
-
-        // 7. Check every product
-        for (const item of normalizedItems) {
-
-            const { product_id, quantity } = item;
-
-            const productResult = await client.query(
-                `SELECT *
-                 FROM products
-                 WHERE id = $1
-                 FOR UPDATE`,
-                [product_id]
-            );
-
-            if (productResult.rows.length === 0) {
-                await client.query("ROLLBACK");
-
-                return errorResponse(
-                    res,
-                    `Product ${product_id} not found`,
-                    404
-                );
-            }
-
-            const product = productResult.rows[0];
-
-            // 8. Check stock
-            if (product.stock_quantity < quantity) {
-                await client.query("ROLLBACK");
-
-                return errorResponse(
-                    res,
-                    `Insufficient stock for ${product.name}`,
-                    400
-                );
-            }
-
-            // 9. Calculate item total
-            const itemTotal =
-                Number(product.price) * quantity;
-
-            totalAmount += itemTotal;
-
-            products.push({
-                product_id,
-                quantity,
-                unit_price: product.price
-            });
-        }
-
-        // 10. Create sale
-        const saleResult = await client.query(
-            `INSERT INTO sales
-             (customer_id, user_id, total_amount)
-             VALUES ($1, $2, $3)
-             RETURNING *`,
-            [
-                customerId,
-                req.user?.userId,
-                totalAmount
-            ]
-        );
-
-        const sale = saleResult.rows[0];
-
-        // 11. Create sale items + decrease stock
-        for (const product of products) {
-
-            await client.query(
-                `INSERT INTO sale_items
-                 (sale_id, product_id, quantity, unit_price)
-                 VALUES ($1, $2, $3, $4)`,
-                [
-                    sale.id,
-                    product.product_id,
-                    product.quantity,
-                    product.unit_price
-                ]
-            );
-
-            await client.query(
-                `UPDATE products
-                 SET stock_quantity = stock_quantity - $1
-                 WHERE id = $2`,
-                [
-                    product.quantity,
-                    product.product_id
-                ]
-            );
-        }
-
-        // 12. Everything succeeded
-        await client.query("COMMIT");
 
         return successResponse(
             res,
@@ -230,30 +106,8 @@ export const createSale = async (
             },
             201
         );
-
     } catch (error) {
-
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            rollbackFailed = true;
-            console.error("Rollback failed:", rollbackError);
-        }
-
-        console.error(error);
-
-        return errorResponse(
-            res,
-            "Failed to create sale",
-            500
-        );
-
-    } finally {
-
-        // Destroy the connection if rollback failed, so a broken
-        // connection is never returned to the pool
-        client.release(rollbackFailed);
-
+        next(error);
     }
 };
 
