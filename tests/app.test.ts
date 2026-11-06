@@ -743,3 +743,76 @@ describe("Delete conflicts", () => {
         }
     });
 });
+
+describe("Sales deadlock prevention", () => {
+    it("handles sales that list the same products in opposite order", async () => {
+        const productIds: number[] = [];
+
+        for (const name of ["Deadlock Test Product A", "Deadlock Test Product B"]) {
+            const result = await pool.query(
+                `INSERT INTO products (name, price, stock_quantity)
+                 VALUES ($1, $2, $3)
+                 RETURNING id`,
+                [name, 10, 100]
+            );
+
+            productIds.push(result.rows[0].id);
+        }
+
+        const [productA, productB] = productIds;
+
+        try {
+            const sendSale = (items: { product_id: number; quantity: number }[]) =>
+                request(app)
+                    .post("/api/sales")
+                    .set("Authorization", `Bearer ${salesToken}`)
+                    .send({ customer_id: testCustomerId, items });
+
+            const requests = [];
+
+            for (let i = 0; i < 10; i++) {
+                requests.push(
+                    sendSale([
+                        { product_id: productA, quantity: 1 },
+                        { product_id: productB, quantity: 1 }
+                    ])
+                );
+
+                requests.push(
+                    sendSale([
+                        { product_id: productB, quantity: 1 },
+                        { product_id: productA, quantity: 1 }
+                    ])
+                );
+            }
+
+            const responses = await Promise.all(requests);
+
+            expect(responses.map((response) => response.status)).toEqual(
+                Array(20).fill(201)
+            );
+
+            const stockResult = await pool.query(
+                `SELECT stock_quantity
+                 FROM products
+                 WHERE id = ANY($1)`,
+                [productIds]
+            );
+
+            expect(stockResult.rows.map((row) => row.stock_quantity)).toEqual([80, 80]);
+        } finally {
+            await pool.query(
+                `DELETE FROM sales
+                 WHERE id IN (
+                     SELECT sale_id FROM sale_items WHERE product_id = ANY($1)
+                 )`,
+                [productIds]
+            );
+
+            await pool.query(
+                "DELETE FROM products WHERE id = ANY($1)",
+                [productIds]
+            );
+        }
+    }, 30000);
+});
