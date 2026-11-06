@@ -683,3 +683,63 @@ describe("Sales concurrency", () => {
         }
     });
 });
+
+describe("Delete conflicts", () => {
+    it("blocks deleting a product or customer that has sales", async () => {
+        const unique = Date.now();
+
+        const customerResult = await pool.query(
+            `INSERT INTO customers (name, email)
+             VALUES ($1, $2)
+             RETURNING id`,
+            ["Conflict Test Customer", `conflict-${unique}@example.com`]
+        );
+
+        const productResult = await pool.query(
+            `INSERT INTO products (name, price, stock_quantity)
+             VALUES ($1, $2, $3)
+             RETURNING id`,
+            ["Conflict Test Product", 20, 5]
+        );
+
+        const customerId = customerResult.rows[0].id;
+        const productId = productResult.rows[0].id;
+
+        try {
+            const saleResponse = await request(app)
+                .post("/api/sales")
+                .set("Authorization", `Bearer ${salesToken}`)
+                .send({
+                    customer_id: customerId,
+                    items: [{ product_id: productId, quantity: 1 }]
+                });
+
+            expect(saleResponse.status).toBe(201);
+
+            const productDelete = await request(app)
+                .delete(`/api/products/${productId}`)
+                .set("Authorization", `Bearer ${salesToken}`);
+
+            expect(productDelete.status).toBe(409);
+            expect(productDelete.body.message).toBe(
+                "Product cannot be deleted because it is used in existing sales"
+            );
+
+            const customerDelete = await request(app)
+                .delete(`/api/customers/${customerId}`)
+                .set("Authorization", `Bearer ${salesToken}`);
+
+            expect(customerDelete.status).toBe(409);
+            expect(customerDelete.body.message).toBe(
+                "Customer cannot be deleted because they have existing sales"
+            );
+        } finally {
+            await pool.query(
+                `DELETE FROM sales WHERE customer_id = $1`,
+                [customerId]
+            );
+            await pool.query("DELETE FROM products WHERE id = $1", [productId]);
+            await pool.query("DELETE FROM customers WHERE id = $1", [customerId]);
+        }
+    });
+});

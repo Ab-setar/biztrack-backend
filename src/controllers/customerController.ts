@@ -1,3 +1,4 @@
+import { isDbErrorCode } from "../utils/dbErrors.js";
 import { Request, Response } from "express";
 
 import pool from "../db/database.js";
@@ -352,6 +353,14 @@ export const deleteCustomer = async (
         );
 
     } catch (error) {
+        if (isDbErrorCode(error, "23503")) {
+            return errorResponse(
+                res,
+                "Customer cannot be deleted because they have existing sales",
+                409
+            );
+        }
+
         console.error(error);
 
         return errorResponse(
