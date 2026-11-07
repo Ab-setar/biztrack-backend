@@ -1,3 +1,4 @@
+import { logError } from "../utils/logger.js";
 import { Request, Response } from "express";
 
 import pool from "../db/database.js";
@@ -88,7 +89,7 @@ export const getDashboardStats = async (
         );
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,

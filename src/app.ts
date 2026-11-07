@@ -9,8 +9,11 @@ import saleRoutes from "./routes/saleRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
+import { requestLogger } from "./middleware/requestLogger.js";
 
 const app = express();
+
+app.use(requestLogger);
 
 app.use(helmet());
 app.use(cors());

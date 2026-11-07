@@ -1,3 +1,4 @@
+import { logError } from "../utils/logger.js";
 import { Request, Response, NextFunction } from "express";
 
 import pool from "../db/database.js";
@@ -233,7 +234,7 @@ export const getSales = async (
 
     } catch (error) {
 
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,
@@ -297,7 +298,7 @@ export const getSaleById = async (
 
     } catch (error) {
 
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,

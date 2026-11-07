@@ -1,3 +1,4 @@
+import { logError } from "../utils/logger.js";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -56,7 +57,7 @@ export const registerUser = async (
         });
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return res.status(500).json({
             message: "Failed to register user"
@@ -126,7 +127,7 @@ export const loginUser = async (
         });
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return res.status(500).json({
             message: "Failed to login"

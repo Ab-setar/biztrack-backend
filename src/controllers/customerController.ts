@@ -1,3 +1,4 @@
+import { logError } from "../utils/logger.js";
 import { isDbErrorCode } from "../utils/dbErrors.js";
 import { Request, Response } from "express";
 
@@ -82,7 +83,7 @@ export const createCustomer = async (
         );
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,
@@ -193,7 +194,7 @@ export const getCustomers = async (
         );
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,
@@ -231,7 +232,7 @@ export const getCustomerById = async (
         );
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,
@@ -311,7 +312,7 @@ export const updateCustomer = async (
         );
 
     } catch (error) {
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,
@@ -361,7 +362,7 @@ export const deleteCustomer = async (
             );
         }
 
-        console.error(error);
+        logError(res, error);
 
         return errorResponse(
             res,

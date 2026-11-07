@@ -1,5 +1,6 @@
 import pool from "../db/database.js";
 import { AppError } from "../utils/AppError.js";
+import { logger } from "../utils/logger.js";
 import * as saleRepository from "../repositories/saleRepository.js";
 
 export type SaleItemInput = {
@@ -100,7 +101,7 @@ export const createSale = async (
             await client.query("ROLLBACK");
         } catch (rollbackError) {
             rollbackFailed = true;
-            console.error("Rollback failed:", rollbackError);
+            logger.error({ err: rollbackError }, "Rollback failed");
         }
 
         throw error;
