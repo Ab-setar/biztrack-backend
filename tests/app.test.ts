@@ -816,3 +816,22 @@ describe("Sales deadlock prevention", () => {
         }
     }, 30000);
 });
+
+describe("API documentation", () => {
+    it("serves the OpenAPI spec", async () => {
+        const response = await request(app).get("/api-docs/openapi.json");
+
+        expect(response.status).toBe(200);
+        expect(response.body.openapi).toBe("3.0.3");
+        expect(Object.keys(response.body.paths)).toEqual(
+            expect.arrayContaining([
+                "/health",
+                "/api/auth/login",
+                "/api/auth/register",
+                "/api/sales",
+                "/api/sales/{id}",
+                "/api/dashboard"
+            ])
+        );
+    });
+});

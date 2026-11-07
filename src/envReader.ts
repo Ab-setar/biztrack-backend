@@ -64,6 +64,25 @@ export const createEnvReader = () => {
         return fallback;
     };
 
+    const flag = (name: string, fallback: boolean): boolean => {
+        const raw = optional(name);
+
+        if (raw === undefined) {
+            return fallback;
+        }
+
+        if (raw === "true") {
+            return true;
+        }
+
+        if (raw === "false") {
+            return false;
+        }
+
+        problems.push(`${name} must be true or false`);
+        return fallback;
+    };
+
     const addProblem = (message: string): void => {
         problems.push(message);
     };
@@ -83,6 +102,7 @@ export const createEnvReader = () => {
         text,
         port,
         choice,
+        flag,
         addProblem,
         assertValid
     };

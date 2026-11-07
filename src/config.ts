@@ -17,6 +17,7 @@ const env = createEnvReader();
 const nodeEnv = env.choice("NODE_ENV", NODE_ENVS, "development");
 const logLevel = env.choice("LOG_LEVEL", LOG_LEVELS, "info");
 const port = env.port("PORT", 5000);
+const docsEnabled = env.flag("DOCS_ENABLED", nodeEnv !== "production");
 const jwtSecret = env.required("JWT_SECRET");
 
 if (jwtSecret !== "" && nodeEnv === "production" && jwtSecret.length < 32) {
@@ -29,6 +30,7 @@ export const config = {
     nodeEnv,
     logLevel,
     port,
+    docsEnabled,
     jwtSecret,
     db: dbConfig
 } as const;

@@ -10,6 +10,8 @@ import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import { config } from "./config.js";
+import { docsRouter } from "./docs/docsRouter.js";
 
 const app = express();
 
@@ -18,6 +20,10 @@ app.use(requestLogger);
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+if (config.docsEnabled) {
+    app.use("/api-docs", docsRouter);
+}
 
 app.get("/health", (_req, res) => {
     res.status(200).json({
