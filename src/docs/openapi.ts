@@ -1,32 +1,18 @@
 // OpenAPI 3.0 description of the BizTrack API.
 // Keep it in sync with the controllers: change both in the same commit.
 
-const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
-
-const jsonContent = (schema: object) => ({
-    content: { "application/json": { schema } }
-});
-
-const success = (data: object) => ({
-    type: "object",
-    properties: {
-        success: { type: "boolean", example: true },
-        data
-    },
-    required: ["success", "data"]
-});
-
-const money = {
-    type: "string",
-    example: "200.00",
-    description: "Decimal amount sent as a string (PostgreSQL NUMERIC)"
-};
-
-const timestamp = { type: "string", format: "date-time" };
-
-const messageOnly = ref("MessageOnly");
-const errorBody = ref("ErrorResponse");
-const unauthorized = { $ref: "#/components/responses/Unauthorized" };
+import {
+    ref,
+    jsonContent,
+    success,
+    money,
+    timestamp,
+    messageOnly,
+    errorBody,
+    unauthorized
+} from "./helpers.js";
+import { productPaths, productSchemas } from "./productDocs.js";
+import { customerPaths, customerSchemas } from "./customerDocs.js";
 
 export const openApiSpec = {
     openapi: "3.0.3",
@@ -42,10 +28,14 @@ export const openApiSpec = {
         { name: "Health" },
         { name: "Auth" },
         { name: "Sales" },
-        { name: "Dashboard" }
+        { name: "Dashboard" },
+        { name: "Products" },
+        { name: "Customers" }
     ],
     security: [{ bearerAuth: [] }],
     paths: {
+        ...productPaths,
+        ...customerPaths,
         "/health": {
             get: {
                 tags: ["Health"],
@@ -327,6 +317,8 @@ export const openApiSpec = {
             }
         },
         schemas: {
+            ...productSchemas,
+            ...customerSchemas,
             MessageOnly: {
                 type: "object",
                 properties: { message: { type: "string" } },

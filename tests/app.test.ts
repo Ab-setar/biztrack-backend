@@ -835,3 +835,15 @@ describe("API documentation", () => {
         );
     });
 });
+
+describe("API documentation coverage", () => {
+    it("documents the product and customer endpoints", async () => {
+        const response = await request(app).get("/api-docs/openapi.json");
+        const { paths } = response.body;
+
+        expect(Object.keys(paths["/api/products"]).sort()).toEqual(["get", "post"]);
+        expect(Object.keys(paths["/api/products/{id}"]).sort()).toEqual(["delete", "get", "put"]);
+        expect(Object.keys(paths["/api/customers"]).sort()).toEqual(["get", "post"]);
+        expect(Object.keys(paths["/api/customers/{id}"]).sort()).toEqual(["delete", "get", "put"]);
+    });
+});
