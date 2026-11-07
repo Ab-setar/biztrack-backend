@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { logError } from "../utils/logger.js";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
@@ -109,7 +110,7 @@ export const loginUser = async (
                 userId: user.id,
                 role: user.role
             },
-            process.env.JWT_SECRET as string,
+            config.jwtSecret,
             {
                 expiresIn: "1h"
             }

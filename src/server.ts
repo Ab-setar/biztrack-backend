@@ -1,9 +1,7 @@
-import "dotenv/config";
 import app from "./app.js";
+import { config } from "./config.js";
 import { logger } from "./utils/logger.js";
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-    logger.info({ port: PORT }, "Server running");
+app.listen(config.port, () => {
+    logger.info({ port: config.port }, "Server running");
 });

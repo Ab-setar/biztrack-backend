@@ -1,10 +1,9 @@
 import { pino } from "pino";
 import type { Response } from "express";
-
-const isTest = process.env.NODE_ENV === "test";
+import { config } from "../config.js";
 
 export const logger = pino({
-    level: isTest ? "silent" : (process.env.LOG_LEVEL ?? "info"),
+    level: config.nodeEnv === "test" ? "silent" : config.logLevel,
     redact: {
         paths: [
             "req.headers.authorization",

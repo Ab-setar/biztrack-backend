@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { isUserRole } from "../constants/roles.js";
@@ -26,7 +27,7 @@ export const authenticateToken = (
 
         const decoded = jwt.verify(
             parts[1],
-            process.env.JWT_SECRET as string
+            config.jwtSecret
         );
 
         if (
