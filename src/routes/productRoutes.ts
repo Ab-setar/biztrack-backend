@@ -10,6 +10,7 @@ import {
 
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { validateIdParam } from "../middleware/validateIdParam.js";
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.get("/", authenticateToken, getProducts);
 router.get<{ id: string }>(
     "/:id",
     authenticateToken,
+    validateIdParam,
     getProductById
 );
 
@@ -30,6 +32,7 @@ router.post(
 router.put<{ id: string }>(
     "/:id",
     authenticateToken,
+    validateIdParam,
     updateProduct
 );
 
@@ -37,6 +40,7 @@ router.delete<{ id: string }>(
     "/:id",
     authenticateToken,
     authorizeRoles("owner"),
+    validateIdParam,
     deleteProduct
 );
 

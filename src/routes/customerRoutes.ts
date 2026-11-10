@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { validateIdParam } from "../middleware/validateIdParam.js";
 import {
     createCustomer,
     getCustomers,
@@ -26,12 +27,14 @@ router.get(
 router.get<{ id: string }>(
     "/:id",
     authenticateToken,
+    validateIdParam,
     getCustomerById
 );
 
 router.put<{ id: string }>(
     "/:id",
     authenticateToken,
+    validateIdParam,
     updateCustomer
 );
 
@@ -39,6 +42,7 @@ router.delete<{ id: string }>(
     "/:id",
     authenticateToken,
     authorizeRoles("owner"),
+    validateIdParam,
     deleteCustomer
 );
 

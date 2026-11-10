@@ -61,3 +61,34 @@ export const idPathParam = (what: string) => ({
     description: `Id of the ${what}`,
     schema: { type: "integer", minimum: 1 }
 });
+
+export const invalidId = {
+    description: "The id is not a whole number between 1 and 2147483647",
+    ...jsonContent(errorBody)
+};
+
+type LooseOperation = {
+    responses: Record<string, { description?: string }>;
+};
+
+// Every path with {id} can return 400 for a bad id.
+// Call this once, when the spec is built.
+export const addInvalidIdResponses = (
+    paths: Record<string, Record<string, unknown>>
+): void => {
+    for (const [path, operations] of Object.entries(paths)) {
+        if (!path.includes("{id}")) {
+            continue;
+        }
+
+        for (const operation of Object.values(operations) as LooseOperation[]) {
+            const existing = operation.responses["400"];
+
+            if (existing) {
+                existing.description = `${existing.description ?? "Bad request"}, or the id is not a valid number`;
+            } else {
+                operation.responses["400"] = { ...invalidId };
+            }
+        }
+    }
+};

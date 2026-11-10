@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { validateIdParam } from "../middleware/validateIdParam.js";
 
 import {
     createSale,
@@ -18,6 +19,7 @@ router.get(
 router.get<{ id: string }>(
     "/:id",
     authenticateToken,
+    validateIdParam,
     getSaleById
 );
 

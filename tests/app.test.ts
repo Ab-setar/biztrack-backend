@@ -847,3 +847,68 @@ describe("API documentation coverage", () => {
         expect(Object.keys(paths["/api/customers/{id}"]).sort()).toEqual(["delete", "get", "put"]);
     });
 });
+
+describe("Invalid id handling", () => {
+    it("returns 400 for ids that are not positive 32-bit integers", async () => {
+        const badIds = ["abc", "0", "-5", "1.5", "99999999999"];
+
+        const endpoints = [
+            { method: "get", base: "/api/products" },
+            {
+                method: "put",
+                base: "/api/products",
+                body: { name: "Id Test Product", price: 1, stock_quantity: 1 }
+            },
+            { method: "delete", base: "/api/products" },
+            { method: "get", base: "/api/customers" },
+            {
+                method: "put",
+                base: "/api/customers",
+                body: { name: "Id Test Customer" }
+            },
+            { method: "delete", base: "/api/customers" },
+            { method: "get", base: "/api/sales" }
+        ] as const;
+
+        const failures: string[] = [];
+
+        for (const endpoint of endpoints) {
+            for (const id of badIds) {
+                const pending = request(app)
+                    [endpoint.method](`${endpoint.base}/${id}`)
+                    .set("Authorization", `Bearer ${salesToken}`);
+
+                const response =
+                    "body" in endpoint
+                        ? await pending.send(endpoint.body)
+                        : await pending;
+
+                if (response.status !== 400) {
+                    failures.push(
+                        `${endpoint.method.toUpperCase()} ${endpoint.base}/${id} -> ${response.status}`
+                    );
+                }
+            }
+        }
+
+        expect(failures).toEqual([]);
+    });
+});
+
+describe("API documentation of ids", () => {
+    it("documents a 400 response for every path with an id", async () => {
+        const response = await request(app).get("/api-docs/openapi.json");
+
+        const idPaths = Object.entries(
+            response.body.paths as Record<string, Record<string, { responses: Record<string, unknown> }>>
+        ).filter(([path]) => path.includes("{id}"));
+
+        expect(idPaths.length).toBeGreaterThan(0);
+
+        for (const [, operations] of idPaths) {
+            for (const operation of Object.values(operations)) {
+                expect(operation.responses["400"]).toBeDefined();
+            }
+        }
+    });
+});

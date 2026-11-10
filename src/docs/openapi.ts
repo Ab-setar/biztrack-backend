@@ -9,7 +9,8 @@ import {
     timestamp,
     messageOnly,
     errorBody,
-    unauthorized
+    unauthorized,
+    addInvalidIdResponses
 } from "./helpers.js";
 import { productPaths, productSchemas } from "./productDocs.js";
 import { customerPaths, customerSchemas } from "./customerDocs.js";
@@ -490,3 +491,5 @@ export const openApiSpec = {
         }
     }
 };
+
+addInvalidIdResponses(openApiSpec.paths);
