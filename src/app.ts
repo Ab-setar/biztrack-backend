@@ -18,8 +18,14 @@ const app = express();
 app.use(requestLogger);
 
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+// Only the listed websites may read API responses in a browser.
+// An empty list switches CORS off completely.
+app.use(
+    cors({
+        origin: config.corsOrigins.length > 0 ? config.corsOrigins : false
+    })
+);
+app.use(express.json({ limit: "100kb" }));
 
 if (config.docsEnabled) {
     app.use("/api-docs", docsRouter);
@@ -53,6 +59,21 @@ const registerLimiter = rateLimit({
         message: "Too many registration attempts. Please try again later."
     }
 });
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: config.rateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    // The test suite sends many requests from one address
+    skip: () => config.nodeEnv === "test",
+    message: {
+        success: false,
+        message: "Too many requests. Please try again later."
+    }
+});
+
+app.use("/api", apiLimiter);
 
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);

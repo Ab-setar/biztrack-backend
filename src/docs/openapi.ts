@@ -22,7 +22,9 @@ export const openApiSpec = {
         version: "1.0.0",
         description:
             "Business management API: products, customers, sales and a dashboard. " +
-            "Log in with POST /api/auth/login, then send the token as a Bearer token."
+            "Log in with POST /api/auth/login, then send the token as a Bearer token. " +
+            "Every /api endpoint is rate limited (by default 300 requests per 15 minutes " +
+            "for each IP address), and request bodies are limited to 100 KB."
     },
     servers: [{ url: "/" }],
     tags: [

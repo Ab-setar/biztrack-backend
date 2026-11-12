@@ -9,6 +9,7 @@ import pool from "../src/db/database.js";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../src/app.js";
+import { config } from "../src/config.js";
 
 let testUserId: number;
 let testCustomerId: number;
@@ -986,5 +987,49 @@ describe("Registration and login rules", () => {
                 [email.toLowerCase()]
             );
         }
+    });
+});
+
+describe("Request limits and CORS", () => {
+    it("answers malformed and oversized JSON with 4xx, not 500", async () => {
+        const malformed = await request(app)
+            .post("/api/auth/login")
+            .set("Content-Type", "application/json")
+            .send('{"email": ');
+
+        expect(malformed.status).toBe(400);
+        expect(malformed.body).toEqual({
+            success: false,
+            message: "Invalid JSON in request body"
+        });
+
+        const oversized = await request(app)
+            .post("/api/auth/login")
+            .send({ email: "a@example.com", password: "x".repeat(150_000) });
+
+        expect(oversized.status).toBe(413);
+        expect(oversized.body).toEqual({
+            success: false,
+            message: "Request body is too large"
+        });
+    });
+
+    it("lets only the configured origins read API responses in a browser", async () => {
+        const allowedOrigin = config.corsOrigins[0];
+
+        expect(allowedOrigin).toBeDefined();
+
+        const allowed = await request(app)
+            .get("/health")
+            .set("Origin", allowedOrigin);
+
+        expect(allowed.headers["access-control-allow-origin"]).toBe(allowedOrigin);
+
+        const blocked = await request(app)
+            .get("/health")
+            .set("Origin", "https://evil.example");
+
+        expect(blocked.status).toBe(200);
+        expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
     });
 });

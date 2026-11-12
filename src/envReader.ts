@@ -64,6 +64,72 @@ export const createEnvReader = () => {
         return fallback;
     };
 
+    const integer = (
+        name: string,
+        fallback: number,
+        min: number,
+        max: number
+    ): number => {
+        const raw = optional(name);
+
+        if (raw === undefined) {
+            return fallback;
+        }
+
+        const value = Number(raw);
+
+        if (!/^\d+$/.test(raw) || value < min || value > max) {
+            problems.push(
+                `${name} must be a whole number between ${min} and ${max}`
+            );
+            return fallback;
+        }
+
+        return value;
+    };
+
+    // Comma separated browser origins such as http://localhost:5173
+    const originList = (name: string, fallback: string[]): string[] => {
+        const raw = optional(name);
+
+        if (raw === undefined) {
+            return fallback;
+        }
+
+        const origins: string[] = [];
+        let hasInvalidItem = false;
+
+        for (const item of raw.split(",").map((part) => part.trim())) {
+            if (item === "") {
+                continue;
+            }
+
+            try {
+                const url = new URL(item);
+                const isHttp =
+                    url.protocol === "http:" || url.protocol === "https:";
+
+                if (isHttp && url.origin === item) {
+                    origins.push(item);
+                } else {
+                    hasInvalidItem = true;
+                }
+            } catch {
+                hasInvalidItem = true;
+            }
+        }
+
+        if (hasInvalidItem) {
+            problems.push(
+                `${name} must be a comma separated list of origins such as ` +
+                    "http://localhost:5173 (no path, no trailing slash, no *)"
+            );
+            return fallback;
+        }
+
+        return origins;
+    };
+
     const flag = (name: string, fallback: boolean): boolean => {
         const raw = optional(name);
 
@@ -103,6 +169,8 @@ export const createEnvReader = () => {
         port,
         choice,
         flag,
+        integer,
+        originList,
         addProblem,
         assertValid
     };
