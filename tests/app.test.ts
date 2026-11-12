@@ -912,3 +912,79 @@ describe("API documentation of ids", () => {
         }
     });
 });
+
+// The register limiter allows 10 requests per test run.
+// This file sends 8, so keep new register tests few.
+describe("Registration and login rules", () => {
+    it("rejects weak or malformed registration input", async () => {
+        const cases = [
+            {
+                body: { name: "Test User", email: "rules-test@example.com", password: "short" },
+                message: "Password must be at least 8 characters long"
+            },
+            {
+                body: { name: "Test User", email: "not-an-email", password: "long-enough-password" },
+                message: "Invalid email address"
+            },
+            {
+                body: { name: 123, email: {}, password: ["x"] },
+                message: "Name, email and password are required"
+            },
+            {
+                body: { name: "Test User", email: "rules-test@example.com", password: "a".repeat(73) },
+                message: "Password must be 72 bytes or fewer"
+            }
+        ];
+
+        for (const { body, message } of cases) {
+            const response = await request(app)
+                .post("/api/auth/register")
+                .send(body);
+
+            expect(response.status).toBe(400);
+            expect(response.body).toEqual({ message });
+        }
+    });
+
+    it("creates one account for simultaneous duplicate registrations, then logs in", async () => {
+        const email = `Rules.Test.${Date.now()}@Example.com`;
+        const password = "correct-horse-battery";
+
+        try {
+            const responses = await Promise.all(
+                [email, email.toLowerCase(), `  ${email}  `].map((address) =>
+                    request(app)
+                        .post("/api/auth/register")
+                        .send({ name: "Rules Test", email: address, password })
+                )
+            );
+
+            expect(responses.map((response) => response.status).sort()).toEqual([201, 409, 409]);
+
+            const created = responses.find((response) => response.status === 201)!;
+
+            expect(created.body.user.email).toBe(email.toLowerCase());
+            expect(created.body.user.role).toBe("employee");
+            expect(created.body.user).not.toHaveProperty("password");
+
+            const login = await request(app)
+                .post("/api/auth/login")
+                .send({ email: email.toUpperCase(), password });
+
+            expect(login.status).toBe(200);
+            expect(typeof login.body.token).toBe("string");
+
+            const wrongPassword = await request(app)
+                .post("/api/auth/login")
+                .send({ email, password: "wrong-password-123" });
+
+            expect(wrongPassword.status).toBe(401);
+            expect(wrongPassword.body).toEqual({ message: "Invalid email or password" });
+        } finally {
+            await pool.query(
+                "DELETE FROM users WHERE lower(email) = $1",
+                [email.toLowerCase()]
+            );
+        }
+    });
+});

@@ -27,7 +27,8 @@ export const authenticateToken = (
 
         const decoded = jwt.verify(
             parts[1],
-            config.jwtSecret
+            config.jwtSecret,
+            { algorithms: ["HS256"] }
         );
 
         if (

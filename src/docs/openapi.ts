@@ -64,7 +64,9 @@ export const openApiSpec = {
             post: {
                 tags: ["Auth"],
                 summary: "Register a new user",
-                description: "New users always get the employee role.",
+                description:
+                    "New users always get the employee role. The email is saved in lower case. " +
+                    "Limit: 10 registrations per hour for each IP address.",
                 security: [],
                 requestBody: {
                     required: true,
@@ -87,12 +89,19 @@ export const openApiSpec = {
                         })
                     },
                     "400": {
-                        description: "Name, email or password is missing",
+                        description:
+                            "Name, email or password is missing or not text, the email is invalid, " +
+                            "the name is longer than 100 characters, or the password is shorter " +
+                            "than 8 characters or longer than 72 bytes",
                         ...jsonContent(messageOnly)
                     },
                     "409": {
                         description: "Email already exists",
                         ...jsonContent(messageOnly)
+                    },
+                    "429": {
+                        description: "Too many registration attempts",
+                        ...jsonContent(errorBody)
                     },
                     "500": {
                         description: "Server error",
@@ -132,7 +141,7 @@ export const openApiSpec = {
                         })
                     },
                     "400": {
-                        description: "Email or password is missing",
+                        description: "Email or password is missing or not text",
                         ...jsonContent(messageOnly)
                     },
                     "401": {
@@ -337,13 +346,25 @@ export const openApiSpec = {
                 type: "object",
                 required: ["name", "email", "password"],
                 properties: {
-                    name: { type: "string", example: "Abebe Kebede" },
+                    name: {
+                        type: "string",
+                        minLength: 1,
+                        maxLength: 100,
+                        example: "Abebe Kebede"
+                    },
                     email: {
                         type: "string",
                         format: "email",
-                        example: "abebe@example.com"
+                        maxLength: 100,
+                        example: "abebe@example.com",
+                        description: "Saved in lower case"
                     },
-                    password: { type: "string", format: "password" }
+                    password: {
+                        type: "string",
+                        format: "password",
+                        minLength: 8,
+                        description: "At least 8 characters and at most 72 bytes"
+                    }
                 }
             },
             LoginRequest: {

@@ -1,38 +1,39 @@
-import { config } from "../config.js";
-import { logError } from "../utils/logger.js";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../db/database.js";
+import { config } from "../config.js";
+import { logError } from "../utils/logger.js";
+import { isDbErrorCode } from "../utils/dbErrors.js";
+import {
+    validateRegisterInput,
+    validateLoginInput
+} from "../validators/authValidator.js";
 
-interface RegisterBody {
-    name?: string;
-    email?: string;
-    password?: string;
-}
+const BCRYPT_ROUNDS = 10;
 
-interface LoginBody {
-    email?: string;
-    password?: string;
-}
+// Used when the email is unknown, so login takes about the same time
+// whether or not the account exists
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+    "not-a-real-password",
+    BCRYPT_ROUNDS
+);
 
-export const registerUser = async (
-    req: Request<{}, {}, RegisterBody>,
-    res: Response
-) => {
+export const registerUser = async (req: Request, res: Response) => {
     try {
-        const { name, email, password } = req.body;
+        const parsed = validateRegisterInput(req.body);
 
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                message: "Name, email and password are required"
-            });
+        if (!parsed.ok) {
+            return res.status(400).json({ message: parsed.message });
         }
 
+        const { name, email, password } = parsed.value;
+
+        // Quick check. The UNIQUE constraint on users.email is the real protection.
         const existingUser = await pool.query(
             `SELECT id
              FROM users
-             WHERE email = $1`,
+             WHERE lower(email) = $1`,
             [email]
         );
 
@@ -42,7 +43,7 @@ export const registerUser = async (
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         const result = await pool.query(
             `INSERT INTO users
@@ -58,6 +59,14 @@ export const registerUser = async (
         });
 
     } catch (error) {
+        // Two requests with the same email at the same moment:
+        // the database refuses the second one
+        if (isDbErrorCode(error, "23505")) {
+            return res.status(409).json({
+                message: "Email already exists"
+            });
+        }
+
         logError(res, error);
 
         return res.status(500).json({
@@ -66,40 +75,32 @@ export const registerUser = async (
     }
 };
 
-export const loginUser = async (
-    req: Request<{}, {}, LoginBody>,
-    res: Response
-) => {
+export const loginUser = async (req: Request, res: Response) => {
     try {
-        const { email, password } = req.body;
+        const parsed = validateLoginInput(req.body);
 
-        if (!email || !password) {
-            return res.status(400).json({
-                message: "Email and password are required"
-            });
+        if (!parsed.ok) {
+            return res.status(400).json({ message: parsed.message });
         }
+
+        const { email, password } = parsed.value;
 
         const result = await pool.query(
             `SELECT *
              FROM users
-             WHERE email = $1`,
+             WHERE lower(email) = $1`,
             [email]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(401).json({
-                message: "Invalid email or password"
-            });
-        }
-
         const user = result.rows[0];
 
+        // Always run one bcrypt comparison, also when the email is unknown
         const passwordMatch = await bcrypt.compare(
             password,
-            user.password
+            user ? user.password : DUMMY_PASSWORD_HASH
         );
 
-        if (!passwordMatch) {
+        if (!user || !passwordMatch) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
@@ -112,6 +113,7 @@ export const loginUser = async (
             },
             config.jwtSecret,
             {
+                algorithm: "HS256",
                 expiresIn: "1h"
             }
         );
