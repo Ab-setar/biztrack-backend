@@ -7,7 +7,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "node --env-file=.env.test ./node_modules/vitest/vitest.mjs run"
+    "test": "node --env-file=.env.test ./node_modules/vitest/vitest.mjs run",
+    "migrate": "node dist/db/migrationRunner.js",
+    "migrate:test": "node --env-file=.env.test dist/db/migrationRunner.js",
+    "create-owner": "node dist/scripts/createOwner.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -5,12 +5,11 @@ import pool from "../db/database.js";
 import { config } from "../config.js";
 import { logError } from "../utils/logger.js";
 import { isDbErrorCode } from "../utils/dbErrors.js";
+import { BCRYPT_ROUNDS } from "../constants/security.js";
 import {
     validateRegisterInput,
     validateLoginInput
 } from "../validators/authValidator.js";
-
-const BCRYPT_ROUNDS = 10;
 
 // Used when the email is unknown, so login takes about the same time
 // whether or not the account exists

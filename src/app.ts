@@ -54,6 +54,8 @@ const registerLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    // Switched off in tests, which create several accounts. Checked by hand instead.
+    skip: () => config.nodeEnv === "test",
     message: {
         success: false,
         message: "Too many registration attempts. Please try again later."

@@ -10,6 +10,7 @@ import {
     messageOnly,
     errorBody,
     unauthorized,
+    forbidden,
     addInvalidIdResponses
 } from "./helpers.js";
 import { productPaths, productSchemas } from "./productDocs.js";
@@ -65,11 +66,11 @@ export const openApiSpec = {
         "/api/auth/register": {
             post: {
                 tags: ["Auth"],
-                summary: "Register a new user",
+                summary: "Create an employee account (owner only)",
                 description:
-                    "New users always get the employee role. The email is saved in lower case. " +
+                    "Only a logged-in owner can create accounts. The new user always gets the employee role, " +
+                    "and the email is saved in lower case. " +
                     "Limit: 10 registrations per hour for each IP address.",
-                security: [],
                 requestBody: {
                     required: true,
                     content: {
@@ -101,6 +102,8 @@ export const openApiSpec = {
                         description: "Email already exists",
                         ...jsonContent(messageOnly)
                     },
+                    "401": unauthorized,
+                    "403": forbidden,
                     "429": {
                         description: "Too many registration attempts",
                         ...jsonContent(errorBody)

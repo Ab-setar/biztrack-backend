@@ -130,6 +130,7 @@ describe("Authentication validation", () => {
     it("rejects registration when required fields are missing", async () => {
         const response = await request(app)
             .post("/api/auth/register")
+            .set("Authorization", `Bearer ${salesToken}`)
             .send({ email: "test@example.com" });
 
         expect(response.status).toBe(400);
@@ -914,8 +915,7 @@ describe("API documentation of ids", () => {
     });
 });
 
-// The register limiter allows 10 requests per test run.
-// This file sends 8, so keep new register tests few.
+// The register limiter is switched off when NODE_ENV is "test".
 describe("Registration and login rules", () => {
     it("rejects weak or malformed registration input", async () => {
         const cases = [
@@ -940,6 +940,7 @@ describe("Registration and login rules", () => {
         for (const { body, message } of cases) {
             const response = await request(app)
                 .post("/api/auth/register")
+                .set("Authorization", `Bearer ${salesToken}`)
                 .send(body);
 
             expect(response.status).toBe(400);
@@ -956,6 +957,7 @@ describe("Registration and login rules", () => {
                 [email, email.toLowerCase(), `  ${email}  `].map((address) =>
                     request(app)
                         .post("/api/auth/register")
+                        .set("Authorization", `Bearer ${salesToken}`)
                         .send({ name: "Rules Test", email: address, password })
                 )
             );
@@ -1031,5 +1033,40 @@ describe("Request limits and CORS", () => {
 
         expect(blocked.status).toBe(200);
         expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
+    });
+});
+
+describe("Account creation is owner only", () => {
+    it("rejects registration without a token and with an employee token", async () => {
+        const body = {
+            name: "Blocked User",
+            email: "blocked-user@example.com",
+            password: "long-enough-password"
+        };
+
+        const anonymous = await request(app)
+            .post("/api/auth/register")
+            .send(body);
+
+        expect(anonymous.status).toBe(401);
+
+        const employeeToken = jwt.sign(
+            { userId: testUserId, role: "employee" },
+            config.jwtSecret
+        );
+
+        const employee = await request(app)
+            .post("/api/auth/register")
+            .set("Authorization", `Bearer ${employeeToken}`)
+            .send(body);
+
+        expect(employee.status).toBe(403);
+
+        const created = await pool.query(
+            "SELECT id FROM users WHERE email = $1",
+            [body.email]
+        );
+
+        expect(created.rows).toHaveLength(0);
     });
 });
