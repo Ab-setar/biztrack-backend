@@ -7,7 +7,6 @@ import {
     success,
     money,
     timestamp,
-    messageOnly,
     errorBody,
     unauthorized,
     forbidden,
@@ -25,7 +24,9 @@ export const openApiSpec = {
             "Business management API: products, customers, sales and a dashboard. " +
             "Log in with POST /api/auth/login, then send the token as a Bearer token. " +
             "Every /api endpoint is rate limited (by default 300 requests per 15 minutes " +
-            "for each IP address), and request bodies are limited to 100 KB."
+            "for each IP address), and request bodies are limited to 100 KB. " +
+            "Successful responses look like { success: true, data }. " +
+            "Errors look like { success: false, message }."
     },
     servers: [{ url: "/" }],
     tags: [
@@ -80,7 +81,7 @@ export const openApiSpec = {
                 responses: {
                     "201": {
                         description: "User created",
-                        ...jsonContent({
+                        ...jsonContent(success({
                             type: "object",
                             properties: {
                                 message: {
@@ -89,18 +90,18 @@ export const openApiSpec = {
                                 },
                                 user: ref("RegisteredUser")
                             }
-                        })
+                        }))
                     },
                     "400": {
                         description:
                             "Name, email or password is missing or not text, the email is invalid, " +
                             "the name is longer than 100 characters, or the password is shorter " +
                             "than 8 characters or longer than 72 bytes",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     },
                     "409": {
                         description: "Email already exists",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     },
                     "401": unauthorized,
                     "403": forbidden,
@@ -110,7 +111,7 @@ export const openApiSpec = {
                     },
                     "500": {
                         description: "Server error",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     }
                 }
             }
@@ -133,7 +134,7 @@ export const openApiSpec = {
                 responses: {
                     "200": {
                         description: "Login successful",
-                        ...jsonContent({
+                        ...jsonContent(success({
                             type: "object",
                             properties: {
                                 message: {
@@ -143,15 +144,15 @@ export const openApiSpec = {
                                 token: { type: "string" },
                                 user: ref("User")
                             }
-                        })
+                        }))
                     },
                     "400": {
                         description: "Email or password is missing or not text",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     },
                     "401": {
                         description: "Invalid email or password",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     },
                     "429": {
                         description: "Too many login attempts",
@@ -159,7 +160,7 @@ export const openApiSpec = {
                     },
                     "500": {
                         description: "Server error",
-                        ...jsonContent(messageOnly)
+                        ...jsonContent(errorBody)
                     }
                 }
             }
@@ -328,17 +329,12 @@ export const openApiSpec = {
         responses: {
             Unauthorized: {
                 description: "Missing, invalid or expired token",
-                ...jsonContent(messageOnly)
+                ...jsonContent(errorBody)
             }
         },
         schemas: {
             ...productSchemas,
             ...customerSchemas,
-            MessageOnly: {
-                type: "object",
-                properties: { message: { type: "string" } },
-                required: ["message"]
-            },
             ErrorResponse: {
                 type: "object",
                 properties: {

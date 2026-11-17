@@ -72,3 +72,10 @@ export const errorHandler = (
         message: "Internal server error"
     });
 };
+
+// Any request that matched no route
+export const notFoundHandler = (_req: Request, res: Response) =>
+    res.status(404).json({
+        success: false,
+        message: "Route not found"
+    });

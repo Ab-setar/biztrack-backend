@@ -23,13 +23,12 @@ export const money = {
 
 export const timestamp = { type: "string", format: "date-time" };
 
-export const messageOnly = ref("MessageOnly");
 export const errorBody = ref("ErrorResponse");
 export const unauthorized = { $ref: "#/components/responses/Unauthorized" };
 
 export const forbidden = {
     description: "Only the owner role may do this",
-    ...jsonContent(messageOnly)
+    ...jsonContent(errorBody)
 };
 
 export const serverError = {

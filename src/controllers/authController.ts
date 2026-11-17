@@ -3,9 +3,10 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../db/database.js";
 import { config } from "../config.js";
+import { BCRYPT_ROUNDS } from "../constants/security.js";
 import { logError } from "../utils/logger.js";
 import { isDbErrorCode } from "../utils/dbErrors.js";
-import { BCRYPT_ROUNDS } from "../constants/security.js";
+import { errorResponse, successResponse } from "../utils/response.js";
 import {
     validateRegisterInput,
     validateLoginInput
@@ -23,7 +24,7 @@ export const registerUser = async (req: Request, res: Response) => {
         const parsed = validateRegisterInput(req.body);
 
         if (!parsed.ok) {
-            return res.status(400).json({ message: parsed.message });
+            return errorResponse(res, parsed.message, 400);
         }
 
         const { name, email, password } = parsed.value;
@@ -37,9 +38,7 @@ export const registerUser = async (req: Request, res: Response) => {
         );
 
         if (existingUser.rows.length > 0) {
-            return res.status(409).json({
-                message: "Email already exists"
-            });
+            return errorResponse(res, "Email already exists", 409);
         }
 
         const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -52,25 +51,25 @@ export const registerUser = async (req: Request, res: Response) => {
             [name, email, hashedPassword]
         );
 
-        return res.status(201).json({
-            message: "User registered successfully",
-            user: result.rows[0]
-        });
+        return successResponse(
+            res,
+            {
+                message: "User registered successfully",
+                user: result.rows[0]
+            },
+            201
+        );
 
     } catch (error) {
         // Two requests with the same email at the same moment:
         // the database refuses the second one
         if (isDbErrorCode(error, "23505")) {
-            return res.status(409).json({
-                message: "Email already exists"
-            });
+            return errorResponse(res, "Email already exists", 409);
         }
 
         logError(res, error);
 
-        return res.status(500).json({
-            message: "Failed to register user"
-        });
+        return errorResponse(res, "Failed to register user", 500);
     }
 };
 
@@ -79,7 +78,7 @@ export const loginUser = async (req: Request, res: Response) => {
         const parsed = validateLoginInput(req.body);
 
         if (!parsed.ok) {
-            return res.status(400).json({ message: parsed.message });
+            return errorResponse(res, parsed.message, 400);
         }
 
         const { email, password } = parsed.value;
@@ -100,9 +99,7 @@ export const loginUser = async (req: Request, res: Response) => {
         );
 
         if (!user || !passwordMatch) {
-            return res.status(401).json({
-                message: "Invalid email or password"
-            });
+            return errorResponse(res, "Invalid email or password", 401);
         }
 
         const token = jwt.sign(
@@ -117,7 +114,7 @@ export const loginUser = async (req: Request, res: Response) => {
             }
         );
 
-        return res.status(200).json({
+        return successResponse(res, {
             message: "Login successful",
             token,
             user: {
@@ -131,8 +128,6 @@ export const loginUser = async (req: Request, res: Response) => {
     } catch (error) {
         logError(res, error);
 
-        return res.status(500).json({
-            message: "Failed to login"
-        });
+        return errorResponse(res, "Failed to login", 500);
     }
 };

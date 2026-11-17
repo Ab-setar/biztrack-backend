@@ -135,6 +135,7 @@ describe("Authentication validation", () => {
 
         expect(response.status).toBe(400);
         expect(response.body).toEqual({
+            success: false,
             message: "Name, email and password are required"
         });
     });
@@ -146,6 +147,7 @@ describe("Authentication validation", () => {
 
         expect(response.status).toBe(400);
         expect(response.body).toEqual({
+            success: false,
             message: "Email and password are required"
         });
     });
@@ -944,7 +946,7 @@ describe("Registration and login rules", () => {
                 .send(body);
 
             expect(response.status).toBe(400);
-            expect(response.body).toEqual({ message });
+            expect(response.body).toEqual({ success: false, message });
         }
     });
 
@@ -966,23 +968,23 @@ describe("Registration and login rules", () => {
 
             const created = responses.find((response) => response.status === 201)!;
 
-            expect(created.body.user.email).toBe(email.toLowerCase());
-            expect(created.body.user.role).toBe("employee");
-            expect(created.body.user).not.toHaveProperty("password");
+            expect(created.body.data.user.email).toBe(email.toLowerCase());
+            expect(created.body.data.user.role).toBe("employee");
+            expect(created.body.data.user).not.toHaveProperty("password");
 
             const login = await request(app)
                 .post("/api/auth/login")
                 .send({ email: email.toUpperCase(), password });
 
             expect(login.status).toBe(200);
-            expect(typeof login.body.token).toBe("string");
+            expect(typeof login.body.data.token).toBe("string");
 
             const wrongPassword = await request(app)
                 .post("/api/auth/login")
                 .send({ email, password: "wrong-password-123" });
 
             expect(wrongPassword.status).toBe(401);
-            expect(wrongPassword.body).toEqual({ message: "Invalid email or password" });
+            expect(wrongPassword.body).toEqual({ success: false, message: "Invalid email or password" });
         } finally {
             await pool.query(
                 "DELETE FROM users WHERE lower(email) = $1",
@@ -1068,5 +1070,50 @@ describe("Account creation is owner only", () => {
         );
 
         expect(created.rows).toHaveLength(0);
+    });
+});
+
+describe("Consistent response shape", () => {
+    it("answers every kind of error with { success: false, message }", async () => {
+        const employeeToken = jwt.sign(
+            { userId: testUserId, role: "employee" },
+            config.jwtSecret
+        );
+        const owner = `Bearer ${salesToken}`;
+
+        const responses = await Promise.all([
+            request(app).get("/api/products"),
+            request(app)
+                .get("/api/products")
+                .set("Authorization", "Bearer not-a-token"),
+            request(app)
+                .get("/api/products")
+                .set("Authorization", "Basic abc"),
+            request(app)
+                .delete("/api/products/1")
+                .set("Authorization", `Bearer ${employeeToken}`),
+            request(app).post("/api/auth/login").send({}),
+            request(app)
+                .post("/api/auth/login")
+                .send({ email: "nobody@example.com", password: "wrong-password-1" }),
+            request(app).get("/api/products/abc").set("Authorization", owner),
+            request(app).get("/api/does-not-exist").set("Authorization", owner)
+        ]);
+
+        expect(responses.map((response) => response.status)).toEqual([
+            401, 401, 401, 403, 400, 401, 400, 404
+        ]);
+
+        for (const response of responses) {
+            expect(Object.keys(response.body).sort()).toEqual(["message", "success"]);
+            expect(response.body.success).toBe(false);
+            expect(typeof response.body.message).toBe("string");
+        }
+    });
+
+    it("documents one error shape", async () => {
+        const response = await request(app).get("/api-docs/openapi.json");
+
+        expect(JSON.stringify(response.body)).not.toContain("MessageOnly");
     });
 });

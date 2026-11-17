@@ -8,7 +8,7 @@ import customerRoutes from "./routes/customerRoutes.js";
 import saleRoutes from "./routes/saleRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
-import { errorHandler } from "./middleware/errorMiddleware.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { config } from "./config.js";
 import { docsRouter } from "./docs/docsRouter.js";
@@ -85,6 +85,7 @@ app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth/register", registerLimiter);
 app.use("/api/auth", authRoutes);
 
+app.use(notFoundHandler);
 app.use(errorHandler);
 
 export default app;

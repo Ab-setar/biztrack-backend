@@ -2,6 +2,7 @@ import { config } from "../config.js";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { isUserRole } from "../constants/roles.js";
+import { errorResponse } from "../utils/response.js";
 
 export const authenticateToken = (
     req: Request,
@@ -12,17 +13,13 @@ export const authenticateToken = (
         const authHeader = req.headers.authorization;
 
         if (!authHeader) {
-            return res.status(401).json({
-                message: "Authentication required"
-            });
+            return errorResponse(res, "Authentication required", 401);
         }
 
         const parts = authHeader.split(" ");
 
         if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
-            return res.status(401).json({
-                message: "Invalid authorization format"
-            });
+            return errorResponse(res, "Invalid authorization format", 401);
         }
 
         const decoded = jwt.verify(
@@ -38,9 +35,7 @@ export const authenticateToken = (
             decoded.userId <= 0 ||
             !isUserRole(decoded.role)
         ) {
-            return res.status(401).json({
-                message: "Invalid token"
-            });
+            return errorResponse(res, "Invalid token", 401);
         }
 
         req.user = {
@@ -51,8 +46,6 @@ export const authenticateToken = (
         next();
 
     } catch (error) {
-        return res.status(401).json({
-            message: "Invalid or expired token"
-        });
+        return errorResponse(res, "Invalid or expired token", 401);
     }
 };
