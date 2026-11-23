@@ -14,7 +14,7 @@ export default defineConfig({
                 "src/db/migrationRunner.ts",
                 "src/server.ts"
             ],
-            reporter: ["text", "html"],
+            reporter: [["text", { maxCols: 160 }], "html"],
             reportsDirectory: "coverage"
         }
     }
