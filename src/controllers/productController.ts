@@ -1,5 +1,6 @@
 import { AppError } from "../utils/AppError.js";
 import { isDbErrorCode } from "../utils/dbErrors.js";
+import { validateProductInput } from "../validators/productValidator.js";
 import { Request, Response, NextFunction } from "express";
 import pool from "../db/database.js";
 import { successResponse, errorResponse } from "../utils/response.js";
@@ -29,28 +30,17 @@ export const createProduct = async (
     next: NextFunction
 ) => {
     try {
-        const { name, price, stock_quantity } = req.body;
+        const parsed = validateProductInput(req.body);
 
-        const normalizedName =
-            typeof name === "string" ? name.trim() : "";
-
-        const normalizedPrice =
-            typeof price === "number" ? price : NaN;
-
-        const normalizedStockQuantity =
-            typeof stock_quantity === "number"
-                ? stock_quantity
-                : NaN;
-
-        if (
-            !normalizedName ||
-            !Number.isFinite(normalizedPrice) ||
-            normalizedPrice < 0 ||
-            !Number.isInteger(normalizedStockQuantity) ||
-            normalizedStockQuantity < 0
-        ) {
-            return errorResponse(res, "Invalid product data", 400);
+        if (!parsed.ok) {
+            return errorResponse(res, parsed.message, 400);
         }
+
+        const {
+            name: normalizedName,
+            price: normalizedPrice,
+            stock_quantity: normalizedStockQuantity
+        } = parsed.value;
 
         const result = await pool.query(
             `INSERT INTO products
@@ -259,28 +249,17 @@ export const updateProduct = async (
 ) => {
     try {
         const { id } = req.params;
-        const { name, price, stock_quantity } = req.body;
+        const parsed = validateProductInput(req.body);
 
-        const normalizedName =
-            typeof name === "string" ? name.trim() : "";
-
-        const normalizedPrice =
-            typeof price === "number" ? price : NaN;
-
-        const normalizedStockQuantity =
-            typeof stock_quantity === "number"
-                ? stock_quantity
-                : NaN;
-
-        if (
-            !normalizedName ||
-            !Number.isFinite(normalizedPrice) ||
-            normalizedPrice < 0 ||
-            !Number.isInteger(normalizedStockQuantity) ||
-            normalizedStockQuantity < 0
-        ) {
-            return errorResponse(res, "Invalid product data", 400);
+        if (!parsed.ok) {
+            return errorResponse(res, parsed.message, 400);
         }
+
+        const {
+            name: normalizedName,
+            price: normalizedPrice,
+            stock_quantity: normalizedStockQuantity
+        } = parsed.value;
 
         const result = await pool.query(
             `UPDATE products

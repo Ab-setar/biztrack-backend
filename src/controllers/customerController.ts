@@ -1,5 +1,6 @@
 import { logError } from "../utils/logger.js";
 import { isDbErrorCode } from "../utils/dbErrors.js";
+import { validateCustomerInput } from "../validators/customerValidator.js";
 import { Request, Response } from "express";
 
 import pool from "../db/database.js";
@@ -30,44 +31,17 @@ export const createCustomer = async (
     res: Response
 ) => {
     try {
-        const { name, phone, email } = req.body;
+        const parsed = validateCustomerInput(req.body);
 
-        const normalizedName =
-            typeof name === "string" ? name.trim() : "";
-
-        const normalizedPhone =
-            typeof phone === "string" ? phone.trim() : phone;
-
-        const normalizedEmail =
-            typeof email === "string"
-                ? email.trim().toLowerCase()
-                : email;
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (
-            !normalizedName ||
-            (normalizedPhone !== undefined && !normalizedPhone) ||
-            (normalizedEmail !== undefined && !normalizedEmail)
-        ) {
-            return errorResponse(
-                res,
-                "Invalid customer data",
-                400
-            );
+        if (!parsed.ok) {
+            return errorResponse(res, parsed.message, 400);
         }
 
-        if (
-            normalizedEmail !== undefined &&
-            typeof normalizedEmail === "string" &&
-            !emailRegex.test(normalizedEmail)
-        ) {
-            return errorResponse(
-                res,
-                "Invalid email address",
-                400
-            );
-        }
+        const {
+            name: normalizedName,
+            phone: normalizedPhone,
+            email: normalizedEmail
+        } = parsed.value;
 
         const result = await pool.query(
             `INSERT INTO customers (name, phone, email)
@@ -249,44 +223,17 @@ export const updateCustomer = async (
 ) => {
     try {
         const { id } = req.params;
-        const { name, phone, email } = req.body;
+        const parsed = validateCustomerInput(req.body);
 
-        const normalizedName =
-            typeof name === "string" ? name.trim() : "";
-
-        const normalizedPhone =
-            typeof phone === "string" ? phone.trim() : phone;
-
-        const normalizedEmail =
-            typeof email === "string"
-                ? email.trim().toLowerCase()
-                : email;
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (
-            !normalizedName ||
-            (normalizedPhone !== undefined && !normalizedPhone) ||
-            (normalizedEmail !== undefined && !normalizedEmail)
-        ) {
-            return errorResponse(
-                res,
-                "Invalid customer data",
-                400
-            );
+        if (!parsed.ok) {
+            return errorResponse(res, parsed.message, 400);
         }
 
-        if (
-            normalizedEmail !== undefined &&
-            typeof normalizedEmail === "string" &&
-            !emailRegex.test(normalizedEmail)
-        ) {
-            return errorResponse(
-                res,
-                "Invalid email address",
-                400
-            );
-        }
+        const {
+            name: normalizedName,
+            phone: normalizedPhone,
+            email: normalizedEmail
+        } = parsed.value;
 
         const result = await pool.query(
             `UPDATE customers

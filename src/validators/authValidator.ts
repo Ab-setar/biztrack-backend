@@ -1,3 +1,5 @@
+import { asRecord, type ValidationResult } from "./validationResult.js";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // bcrypt ignores everything after the first 72 bytes of a password
@@ -6,17 +8,8 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 100;
 
-export type ValidationResult<T> =
-    | { ok: true; value: T }
-    | { ok: false; message: string };
-
 export type RegisterInput = { name: string; email: string; password: string };
 export type LoginInput = { email: string; password: string };
-
-const asRecord = (body: unknown): Record<string, unknown> =>
-    typeof body === "object" && body !== null
-        ? (body as Record<string, unknown>)
-        : {};
 
 export const validateRegisterInput = (
     body: unknown

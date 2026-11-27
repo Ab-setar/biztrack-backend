@@ -12,6 +12,7 @@ import {
     limitParam,
     idPathParam
 } from "./helpers.js";
+import { CUSTOMER_LIMITS } from "../validators/customerValidator.js";
 
 export const customerPaths = {
     "/api/customers": {
@@ -176,20 +177,23 @@ export const customerSchemas = {
                 type: "string",
                 minLength: 1,
                 example: "Abebe Kebede",
-                description: "Spaces at both ends are removed"
+                description: "Spaces at both ends are removed",
+                maxLength: CUSTOMER_LIMITS.nameMaxLength
             },
             phone: {
                 type: "string",
                 example: "0911223344",
                 description:
-                    "Optional. Leave it out instead of sending null or an empty string"
+                    "Optional. Leave it out instead of sending null or an empty string",
+                maxLength: CUSTOMER_LIMITS.phoneMaxLength
             },
             email: {
                 type: "string",
                 format: "email",
                 example: "abebe@example.com",
                 description:
-                    "Optional, saved in lower case. Leave it out instead of sending null or an empty string"
+                    "Optional, saved in lower case. Leave it out instead of sending null or an empty string",
+                maxLength: CUSTOMER_LIMITS.emailMaxLength
             }
         }
     }

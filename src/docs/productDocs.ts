@@ -13,6 +13,7 @@ import {
     limitParam,
     idPathParam
 } from "./helpers.js";
+import { PRODUCT_LIMITS } from "../validators/productValidator.js";
 
 export const productPaths = {
     "/api/products": {
@@ -195,15 +196,24 @@ export const productSchemas = {
                 type: "string",
                 minLength: 1,
                 example: "Laptop Pro",
-                description: "Spaces at both ends are removed"
+                description: "Spaces at both ends are removed",
+                maxLength: PRODUCT_LIMITS.nameMaxLength
             },
             price: {
                 type: "number",
                 minimum: 0,
                 example: 100,
-                description: "A JSON number, not a string"
+                description:
+                    "A JSON number, not a string, with at most 2 decimal places",
+                maximum: PRODUCT_LIMITS.priceMax,
+                multipleOf: 0.01
             },
-            stock_quantity: { type: "integer", minimum: 0, example: 10 }
+            stock_quantity: {
+                type: "integer",
+                minimum: 0,
+                maximum: PRODUCT_LIMITS.stockMax,
+                example: 10
+            }
         }
     }
 };
