@@ -39,15 +39,21 @@ export const createProduct = async (
         const {
             name: normalizedName,
             price: normalizedPrice,
-            stock_quantity: normalizedStockQuantity
+            stock_quantity: normalizedStockQuantity,
+            description: normalizedDescription
         } = parsed.value;
 
         const result = await pool.query(
             `INSERT INTO products
-             (name, price, stock_quantity)
-             VALUES ($1, $2, $3)
+             (name, price, stock_quantity, description)
+             VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [normalizedName, normalizedPrice, normalizedStockQuantity]
+            [
+                normalizedName,
+                normalizedPrice,
+                normalizedStockQuantity,
+                normalizedDescription
+            ]
         );
 
         return successResponse(res, result.rows[0], 201);
@@ -258,20 +264,23 @@ export const updateProduct = async (
         const {
             name: normalizedName,
             price: normalizedPrice,
-            stock_quantity: normalizedStockQuantity
+            stock_quantity: normalizedStockQuantity,
+            description: normalizedDescription
         } = parsed.value;
 
         const result = await pool.query(
             `UPDATE products
              SET name = $1,
                  price = $2,
-                 stock_quantity = $3
-             WHERE id = $4
+                 stock_quantity = $3,
+                 description = $4
+             WHERE id = $5
              RETURNING *`,
             [
                 normalizedName,
                 normalizedPrice,
                 normalizedStockQuantity,
+                normalizedDescription,
                 id
             ]
         );

@@ -116,7 +116,8 @@ export const productPaths = {
             tags: ["Products"],
             summary: "Update a product",
             description:
-                "Replaces name, price and stock_quantity. All three are required.",
+                "Replaces name, price, stock_quantity and description. Name, price and " +
+                "stock_quantity are required. A description left out is cleared.",
             parameters: [idPathParam("product")],
             requestBody: {
                 required: true,
@@ -183,7 +184,7 @@ export const productSchemas = {
             description: {
                 type: "string",
                 nullable: true,
-                description: "Returned, but this API cannot set it yet"
+                description: "Free text about the product, or null"
             },
             created_at: timestamp
         }
@@ -213,6 +214,13 @@ export const productSchemas = {
                 minimum: 0,
                 maximum: PRODUCT_LIMITS.stockMax,
                 example: 10
+            },
+            description: {
+                type: "string",
+                nullable: true,
+                maxLength: PRODUCT_LIMITS.descriptionMaxLength,
+                description:
+                    "Optional. Leave it out, or send null or a blank text, to store no description. A PUT without it clears it."
             }
         }
     }

@@ -8,7 +8,7 @@ describe("validateProductInput", () => {
     it("accepts valid input and trims the name", () => {
         expect(validateProductInput({ ...valid, name: "  Laptop  " })).toEqual({
             ok: true,
-            value: valid
+            value: { ...valid, description: null }
         });
     });
 
@@ -80,6 +80,50 @@ describe("validateProductInput", () => {
                 ok: false,
                 message: "Price can have at most 2 decimal places"
             });
+        }
+    });
+});
+
+describe("validateProductInput description", () => {
+    it("is optional and stored as null when left out, null or blank", () => {
+        for (const extra of [
+            {},
+            { description: null },
+            { description: "" },
+            { description: "   " }
+        ]) {
+            expect(validateProductInput({ ...valid, ...extra })).toEqual({
+                ok: true,
+                value: { ...valid, description: null }
+            });
+        }
+    });
+
+    it("trims the text and accepts the longest allowed", () => {
+        expect(
+            validateProductInput({ ...valid, description: "  Fast  " })
+        ).toEqual({
+            ok: true,
+            value: { ...valid, description: "Fast" }
+        });
+
+        expect(
+            validateProductInput({ ...valid, description: "d".repeat(1000) }).ok
+        ).toBe(true);
+    });
+
+    it("rejects text that is too long and values that are not text", () => {
+        expect(
+            validateProductInput({ ...valid, description: "d".repeat(1001) })
+        ).toEqual({
+            ok: false,
+            message: "Description must be 1000 characters or fewer"
+        });
+
+        for (const description of [5, true, ["x"], { a: 1 }]) {
+            expect(validateProductInput({ ...valid, description })).toEqual(
+                INVALID
+            );
         }
     });
 });
